@@ -1,0 +1,27 @@
+# Archivos compilados
+*.o
+*.a
+*.exe
+*.dll
+
+# Directorios de compilación
+obj/
+bin/
+build/
+
+# Editores y IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Dependencias
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# Otros
+.git/
+*.log

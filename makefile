@@ -13,7 +13,7 @@ CXX := g++
 CXXFLAGS := -std=c++17 -I$(INCLUDE_DIR) -Wall -Wextra
 
 # Archivos fuente específicos
-SOURCES := $(SRC_DIR)/main.cpp $(SRC_DIR)/Entity.cpp
+SOURCES := $(SRC_DIR)/main.cpp $(SRC_DIR)/Entity.cpp $(SRC_DIR)/Game.cpp $(SRC_DIR)/TextureManager.cpp
 OBJECTS := $(patsubst $(SRC_DIR)/%.cpp,obj/%.o,$(SOURCES))
 EXECUTABLE := $(BIN_DIR)/TowerDefenseMexicano.exe
 

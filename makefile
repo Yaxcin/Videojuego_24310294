@@ -13,7 +13,7 @@ CXX := g++
 CXXFLAGS := -std=c++17 -I$(INCLUDE_DIR) -Wall -Wextra
 
 # Archivos fuente específicos
-SOURCES := $(SRC_DIR)/main.cpp $(SRC_DIR)/Entity.cpp $(SRC_DIR)/Game.cpp $(SRC_DIR)/TextureManager.cpp
+SOURCES := $(SRC_DIR)/main.cpp $(SRC_DIR)/Entity.cpp $(SRC_DIR)/Game.cpp $(SRC_DIR)/TextureManager.cpp $(SRC_DIR)/Map.cpp
 OBJECTS := $(patsubst $(SRC_DIR)/%.cpp,obj/%.o,$(SOURCES))
 EXECUTABLE := $(BIN_DIR)/TowerDefenseMexicano.exe
 
@@ -54,4 +54,6 @@ help:
 	@echo "  make rebuild - Limpiar y recompilar"
 
 .PHONY: all run clean rebuild help
+
+
 

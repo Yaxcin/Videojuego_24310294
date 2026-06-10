@@ -8,9 +8,10 @@ Game::Game(unsigned int w, unsigned int h)
       window(sf::VideoMode(sf::Vector2u(w, h)), "Tower Defense Mexicano"),
       currentState(GameState::MENU),
       deltaTime(0.0f),
-      playerMoney(500.0f),      // Dinero inicial
-      playerLives(100),          // Vidas iniciales
-      currentRound(1) {
+      playerMoney(500.0f),
+      playerLives(100),
+      currentRound(1),
+      map(w, h) {
     
     window.setFramerateLimit(60);
     std::cout << "[GAME] Initialized: " << width << "x" << height << std::endl;
@@ -122,45 +123,8 @@ void Game::update() {
 void Game::render() {
     window.clear(sf::Color::Black);
 
-    // Renderizar fondo simple según estado
-    switch (currentState) {
-        case GameState::MENU: {
-            sf::RectangleShape bg(sf::Vector2f(width, height));
-            bg.setFillColor(sf::Color::Blue);
-            window.draw(bg);
-            break;
-        }
-        case GameState::ROUND_ACTIVE: {
-            sf::RectangleShape bg(sf::Vector2f(width, height));
-            bg.setFillColor(sf::Color::Green);
-            window.draw(bg);
-            break;
-        }
-        case GameState::ROUND_PAUSE: {
-            sf::RectangleShape bg(sf::Vector2f(width, height));
-            bg.setFillColor(sf::Color::Yellow);
-            window.draw(bg);
-            break;
-        }
-        case GameState::COLLECTING_COINS: {
-            sf::RectangleShape bg(sf::Vector2f(width, height));
-            bg.setFillColor(sf::Color::Magenta);
-            window.draw(bg);
-            break;
-        }
-        case GameState::VICTORY: {
-            sf::RectangleShape bg(sf::Vector2f(width, height));
-            bg.setFillColor(sf::Color::Cyan);
-            window.draw(bg);
-            break;
-        }
-        case GameState::DEFEAT: {
-            sf::RectangleShape bg(sf::Vector2f(width, height));
-            bg.setFillColor(sf::Color::Red);
-            window.draw(bg);
-            break;
-        }
-    }
+    // Renderizar mapa (fondo + camino)
+    map.render(window);
 
     // Renderizar entidades
     for (const auto& entity : entities) {
@@ -168,9 +132,6 @@ void Game::render() {
             entity->render(window);
         }
     }
-
-    // Renderizar debug info (texto simple sin cargar fuente por ahora)
-    // TODO: Cargar fuente y mostrar HUD
 
     window.display();
 }

@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include "Map.hpp"
+#include "Enemies/Pinata.hpp"
 
 // Forward declarations
 class Entity;
@@ -54,6 +55,7 @@ private:
 
     // Entities (para Fase 2 y 3)
     std::vector<std::shared_ptr<Entity>> entities;
+    std::vector<std::shared_ptr<Pinata>> enemies;
     Map map;
 
     // Métodos privados

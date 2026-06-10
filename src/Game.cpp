@@ -2,6 +2,7 @@
 #include "Entity.hpp"
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 
 Game::Game(unsigned int w, unsigned int h) 
     : width(w), height(h), 
@@ -77,6 +78,10 @@ void Game::handleEvents() {
                 addPlayerMoney(100);
                 std::cout << "[DEBUG] +100 Money. Total: " << playerMoney << std::endl;
             }
+            else if (keyEvent->code == sf::Keyboard::Key::E) {
+               enemies.push_back(std::make_shared<Pinata>(map.getWaypoints()));
+               std::cout << "[DEBUG] Spawned pinata. Total: " << enemies.size() << std::endl;
+            }
             else if (keyEvent->code == sf::Keyboard::Key::L) {
                 damagePlayer(1);
                 std::cout << "[DEBUG] -1 Life. Total: " << playerLives << std::endl;
@@ -92,9 +97,23 @@ void Game::update() {
             // TODO: Menú principal
             break;
         case GameState::ROUND_ACTIVE:
-            // TODO: Actualizar enemigos, torres, proyectiles
-            // TODO: Detectar colisiones
-            break;
+    // Actualizar enemigos
+    for (auto& enemy : enemies) {
+        if (enemy && enemy->isAlive()) {
+            enemy->update(deltaTime);
+        }
+        // Si llegó al final, quitar vida
+        if (enemy && enemy->hasReachedEnd()) {
+            damagePlayer(1);
+        }
+    }
+    // Limpiar enemigos muertos
+    enemies.erase(
+        std::remove_if(enemies.begin(), enemies.end(),
+            [](const std::shared_ptr<Pinata>& e) { return !e || !e->isAlive(); }),
+        enemies.end()
+    );
+    break;
         case GameState::ROUND_PAUSE:
             // TODO: Permitir compra/venta de torres
             break;
@@ -125,6 +144,12 @@ void Game::render() {
 
     // Renderizar mapa (fondo + camino)
     map.render(window);
+    // Renderizar enemigos
+for (const auto& enemy : enemies) {
+    if (enemy && enemy->isAlive()) {
+        enemy->render(window);
+    }
+}
 
     // Renderizar entidades
     for (const auto& entity : entities) {

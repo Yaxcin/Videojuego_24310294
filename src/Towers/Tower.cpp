@@ -54,6 +54,14 @@ bool Tower::isInRange(const sf::Vector2f& targetPosition) const {
     return dist <= range;
 }
 
+void Tower::moveTo(float x, float y) {
+    position = {x, y};
+    rangeCircle.setPosition(position);
+    if (sprite) {
+        sprite->setPosition(position);
+    }
+}
+
 std::shared_ptr<Pinata> Tower::findTarget(std::vector<std::shared_ptr<Pinata>>& enemies) {
     std::shared_ptr<Pinata> nearest = nullptr;
     float minDist = range;

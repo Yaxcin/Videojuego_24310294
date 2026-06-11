@@ -69,6 +69,7 @@ private:
 
     TowerType selectedTowerType;
     bool towerSelected;
+    std::shared_ptr<Tower> selectedPlacedTower;
     static constexpr float PANEL_WIDTH = 200.f;
 
     void handleEvents();
@@ -76,6 +77,10 @@ private:
     void render();
     void updateDebugInfo();
     void placeTower(float x, float y);
+    void moveSelectedTower(float x, float y);
+    bool isValidTowerPosition(const sf::Vector2f& position, const std::shared_ptr<Tower>& ignoredTower = nullptr) const;
+    std::shared_ptr<Tower> findTowerAt(float x, float y) const;
+    void clearTowerSelection();
     void renderPanel();
     void startWave();
     void renderHUD();   

@@ -21,6 +21,7 @@ public:
     TowerType getType() const { return towerType; }
     bool isSupportTower() const { return towerType == TowerType::ORGANILLERO; }
     bool isInRange(const sf::Vector2f& targetPosition) const;
+    void moveTo(float x, float y);
     void setSelected(bool s) { selected = s; }
 
 protected:

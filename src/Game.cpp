@@ -59,7 +59,8 @@ Game::Game(unsigned int w, unsigned int h)
       spawnInterval(1.5f),
       map(w, h),
       selectedTowerType(TowerType::NINO_PALO),
-      towerSelected(false) {
+      towerSelected(false),
+      selectedPlacedTower(nullptr) {
     
     window.setFramerateLimit(60);
     TextureManager::getInstance().loadAllTowerTextures();
@@ -170,7 +171,12 @@ void Game::handleEvents() {
 
     float mapWidth = static_cast<float>(width) - PANEL_WIDTH;
 
-            if (mouseEvent->button == sf::Mouse::Button::Left) {
+            if (mouseEvent->button == sf::Mouse::Button::Right) {
+                towerSelected = false;
+                clearTowerSelection();
+                std::cout << "[UI] Seleccion cancelada" << std::endl;
+            }
+            else if (mouseEvent->button == sf::Mouse::Button::Left) {
                 std::cout << "[MOUSE] x=" << mx << " y=" << my << std::endl;
                 if (mx >= mapWidth) {
                     // Click en panel - seleccionar torre
@@ -182,13 +188,35 @@ void Game::handleEvents() {
                     };
                     int slot = static_cast<int>(my / 95.f);
                     if (slot >= 0 && slot < 7) {
-                        selectedTowerType = tipos[slot];
-                        towerSelected = true;
-                        std::cout << "[UI] Seleccionada: " << getTowerName(selectedTowerType) << std::endl;
+                        clearTowerSelection();
+                        if (towerSelected && selectedTowerType == tipos[slot]) {
+                            towerSelected = false;
+                            std::cout << "[UI] Torre deseleccionada" << std::endl;
+                        } else {
+                            selectedTowerType = tipos[slot];
+                            towerSelected = true;
+                            std::cout << "[UI] Seleccionada: " << getTowerName(selectedTowerType) << std::endl;
+                        }
                     }
-                } else if (towerSelected) {
-                    // Click en mapa - colocar torre
-                    placeTower(mx, my);
+                } else {
+                    auto clickedTower = findTowerAt(mx, my);
+                    if (currentState == GameState::ROUND_PAUSE && selectedPlacedTower) {
+                        if (clickedTower == selectedPlacedTower) {
+                            clearTowerSelection();
+                            std::cout << "[UI] Torre deseleccionada" << std::endl;
+                        } else {
+                            moveSelectedTower(mx, my);
+                        }
+                    } else if (currentState == GameState::ROUND_PAUSE && clickedTower) {
+                        towerSelected = false;
+                        clearTowerSelection();
+                        selectedPlacedTower = clickedTower;
+                        selectedPlacedTower->setSelected(true);
+                        std::cout << "[UI] Torre colocada seleccionada para mover" << std::endl;
+                    } else if (towerSelected) {
+                        // Click en mapa - colocar torre
+                        placeTower(mx, my);
+                    }
                 }
             }
         }
@@ -294,18 +322,7 @@ void Game::placeTower(float x, float y) {
     }
 
     sf::Vector2f towerPosition{x, y};
-    if (map.isOnPath(towerPosition)) {
-        std::cout << "[UI] No puedes colocar torres sobre el camino" << std::endl;
-        return;
-    }
-
-    constexpr float minTowerDistance = 55.f;
-    for (const auto& existingTower : towers) {
-        if (existingTower && distanceBetween(existingTower->getPosition(), towerPosition) < minTowerDistance) {
-            std::cout << "[UI] No puedes colocar torres tan juntas" << std::endl;
-            return;
-        }
-    }
+    if (!isValidTowerPosition(towerPosition)) return;
 
     std::shared_ptr<Tower> tower;
     int cost = 0;
@@ -345,6 +362,54 @@ void Game::placeTower(float x, float y) {
         std::cout << "[TOWER] Colocada en (" << x << ", " << y << "). Dinero: " << playerMoney << std::endl;
     } else {
         std::cout << "[UI] Dinero insuficiente!" << std::endl;
+    }
+}
+
+void Game::moveSelectedTower(float x, float y) {
+    if (!selectedPlacedTower) return;
+
+    sf::Vector2f newPosition{x, y};
+    if (!isValidTowerPosition(newPosition, selectedPlacedTower)) return;
+
+    selectedPlacedTower->moveTo(x, y);
+    std::cout << "[TOWER] Movida a (" << x << ", " << y << ")" << std::endl;
+}
+
+bool Game::isValidTowerPosition(const sf::Vector2f& position, const std::shared_ptr<Tower>& ignoredTower) const {
+    if (map.isOnPath(position)) {
+        std::cout << "[UI] No puedes colocar torres sobre el camino" << std::endl;
+        return false;
+    }
+
+    constexpr float minTowerDistance = 55.f;
+    for (const auto& existingTower : towers) {
+        if (!existingTower || existingTower == ignoredTower) continue;
+        if (distanceBetween(existingTower->getPosition(), position) < minTowerDistance) {
+            std::cout << "[UI] No puedes colocar torres tan juntas" << std::endl;
+            return false;
+        }
+    }
+
+    return true;
+}
+
+std::shared_ptr<Tower> Game::findTowerAt(float x, float y) const {
+    sf::Vector2f clickPosition{x, y};
+    constexpr float selectRadius = 34.f;
+
+    for (auto it = towers.rbegin(); it != towers.rend(); ++it) {
+        if (*it && distanceBetween((*it)->getPosition(), clickPosition) <= selectRadius) {
+            return *it;
+        }
+    }
+
+    return nullptr;
+}
+
+void Game::clearTowerSelection() {
+    if (selectedPlacedTower) {
+        selectedPlacedTower->setSelected(false);
+        selectedPlacedTower = nullptr;
     }
 }
 
@@ -409,6 +474,8 @@ void Game::updateDebugInfo() {
 }
 
 void Game::startWave() {
+    towerSelected = false;
+    clearTowerSelection();
     currentState = GameState::ROUND_ACTIVE;
     enemiesLeftToSpawn = 5 + currentRound * 3;
     spawnInterval = std::max(0.4f, 1.5f - currentRound * 0.1f);

@@ -107,16 +107,16 @@ void Tower::attack(std::shared_ptr<Pinata>& target) {
 }
 
 void Tower::attackArea(std::shared_ptr<Pinata>& target, std::vector<std::shared_ptr<Pinata>>& enemies) {
-    constexpr float splashRadius = 70.f;
     constexpr int maxTargets = 10;
     int hits = 0;
 
     for (auto& e : enemies) {
         if (!e || !e->isAlive()) continue;
-        sf::Vector2f diff = e->getPosition() - target->getPosition();
-        float dist = std::sqrt(diff.x * diff.x + diff.y * diff.y);
-        if (dist <= splashRadius) {
+        if (isInRange(e->getPosition())) {
             e->takeDamage(damage);
+            if (e == target) {
+                lastTargetPosition = e->getPosition();
+            }
             hits++;
             if (hits >= maxTargets) return;
         }
@@ -159,10 +159,10 @@ void Tower::renderAttackEffect(sf::RenderWindow& window) const {
 
     if (towerType == TowerType::DON_COHETES && areaEffectTimer > 0.f) {
         float progress = areaEffectTimer / 0.25f;
-        float radius = 70.f * (1.1f - progress * 0.25f);
+        float radius = range * (1.05f - progress * 0.15f);
         sf::CircleShape explosion(radius);
         explosion.setOrigin({radius, radius});
-        explosion.setPosition(lastTargetPosition);
+        explosion.setPosition(position);
         explosion.setFillColor(sf::Color(255, 120, 40, static_cast<std::uint8_t>(90 * progress)));
         explosion.setOutlineColor(sf::Color(255, 220, 80, static_cast<std::uint8_t>(190 * progress)));
         explosion.setOutlineThickness(3.f);

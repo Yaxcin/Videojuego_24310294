@@ -4,6 +4,29 @@
 #include <sstream>
 #include <algorithm>
 
+namespace {
+    enum class MenuAction {
+        None,
+        Play,
+        Shop,
+        Options,
+        Exit
+    };
+
+    MenuAction getMenuActionAt(float x, float y) {
+        const sf::FloatRect playButton({960.f, 350.f}, {270.f, 90.f});
+        const sf::FloatRect shopButton({980.f, 485.f}, {225.f, 80.f});
+        const sf::FloatRect optionsButton({970.f, 585.f}, {240.f, 75.f});
+        const sf::FloatRect exitButton({980.f, 685.f}, {230.f, 70.f});
+
+        if (playButton.contains({x, y})) return MenuAction::Play;
+        if (shopButton.contains({x, y})) return MenuAction::Shop;
+        if (optionsButton.contains({x, y})) return MenuAction::Options;
+        if (exitButton.contains({x, y})) return MenuAction::Exit;
+        return MenuAction::None;
+    }
+}
+
 Game::Game(unsigned int w, unsigned int h) 
     : width(w), height(h), 
       window(sf::VideoMode(sf::Vector2u(w, h)), "Tower Defense Mexicano"),
@@ -102,7 +125,24 @@ void Game::handleEvents() {
     float my = mousePos.y;
 
     if (currentState == GameState::MENU) {
-        std::cout << "[MENU CLICK] x=" << mx << " y=" << my << std::endl;
+        MenuAction action = getMenuActionAt(mx, my);
+        switch (action) {
+            case MenuAction::Play:
+                currentState = GameState::ROUND_PAUSE;
+                std::cout << "[MENU] Iniciar fiesta" << std::endl;
+                break;
+            case MenuAction::Shop:
+                std::cout << "[MENU] Tienda aun no implementada" << std::endl;
+                break;
+            case MenuAction::Options:
+                std::cout << "[MENU] Opciones aun no implementadas" << std::endl;
+                break;
+            case MenuAction::Exit:
+                window.close();
+                break;
+            case MenuAction::None:
+                break;
+        }
         return;
     }
 

@@ -256,10 +256,10 @@ void Game::update() {
         if (!tower) continue;
 
         float fireRateMultiplier = 1.f;
-        if (!tower->isSupportTower() && tower->getType() != TowerType::ABUELITA) {
+        if (!tower->isSupportTower()) {
             for (const auto& support : towers) {
                 if (support && support->isSupportTower() && support->isInRange(tower->getPosition())) {
-                    fireRateMultiplier = 1.35f;
+                    fireRateMultiplier = (tower->getType() == TowerType::ABUELITA) ? 1.05f : 1.35f;
                     break;
                 }
             }

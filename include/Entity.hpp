@@ -3,13 +3,13 @@
 
 #include <SFML/Graphics.hpp>
 
-// Clase base para todas las entidades del juego (piñatas, torres, proyectiles)
+// Clase base para todas las entidades del juego (pinatas, torres, proyectiles)
 class Entity {
 public:
     Entity(float x = 0.0f, float y = 0.0f);
     virtual ~Entity() = default;
 
-    // Métodos virtuales para actualización y renderizado
+    // Metodos virtuales para actualizacion y renderizado
     virtual void update(float deltaTime) = 0;
     virtual void render(sf::RenderWindow& window) const = 0;
 

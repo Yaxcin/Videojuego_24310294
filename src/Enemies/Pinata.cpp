@@ -34,7 +34,7 @@ Pinata::Pinata(const std::vector<sf::Vector2f>& waypoints, PinataType type, int 
       waypoints(waypoints),
       currentWaypoint(1) {
 
-    // Visual temporal — cuadro de colores
+    // Visual temporal: cuadro de colores
     shape.setSize({30.f, 30.f});
     shape.setOrigin({15.f, 15.f});
     shape.setFillColor(getBaseColor());

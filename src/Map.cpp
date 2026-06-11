@@ -9,7 +9,7 @@ Map::Map(unsigned int windowWidth, unsigned int windowHeight)
 
 void Map::initWaypoints() {
     // Camino en zigzag estilo Bloons, de izquierda a derecha
-    // Ajustado a resolución 1280x720
+    // Ajustado a resolucion 1280x720
     float w = static_cast<float>(winW);
     float h = static_cast<float>(winH);
 
@@ -36,7 +36,7 @@ void Map::drawPath(sf::RenderWindow& window) const {
         float len = std::sqrt(dir.x * dir.x + dir.y * dir.y);
         if (len == 0.f) continue;
 
-        // Rectángulo orientado entre dos waypoints
+        // Rectangulo orientado entre dos waypoints
         sf::RectangleShape segment(sf::Vector2f(len, PATH_WIDTH));
         segment.setOrigin({0.f, PATH_WIDTH / 2.f});
         segment.setPosition(a);
@@ -47,7 +47,7 @@ void Map::drawPath(sf::RenderWindow& window) const {
         window.draw(segment);
     }
 
-    // Dibujar círculos en las esquinas para que no queden huecos
+    // Dibujar circulos en las esquinas para que no queden huecos
     for (const auto& wp : waypoints) {
         sf::CircleShape corner(PATH_WIDTH / 2.f);
         corner.setOrigin({PATH_WIDTH / 2.f, PATH_WIDTH / 2.f});
@@ -88,7 +88,7 @@ bool Map::isOnPath(const sf::Vector2f& point) const {
 }
 
 void Map::render(sf::RenderWindow& window) const {
-    // Fondo verde (pasto mexicano 🌿)
+    // Fondo verde (pasto mexicano)
     sf::RectangleShape bg(sf::Vector2f(static_cast<float>(winW), static_cast<float>(winH)));
     bg.setFillColor(sf::Color(60, 120, 40));
     window.draw(bg);

@@ -57,7 +57,7 @@ public:
         window.draw(drawable);
     }
 
-    // Información
+    // Informacion
     sf::Vector2u getSize() const {
         return window.getSize();
     }
@@ -76,7 +76,7 @@ public:
         return frameRate;
     }
 
-    // Vista/Cámara
+    // Vista/Camara
     void setView(const sf::View& view) {
         window.setView(view);
     }

@@ -4,7 +4,7 @@
 *.exe
 *.dll
 
-# Directorios de compilación
+# Directorios de compilacion
 obj/
 bin/
 build/

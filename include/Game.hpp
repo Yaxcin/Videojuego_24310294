@@ -27,7 +27,7 @@ public:
     Game(unsigned int width = 1280, unsigned int height = 720);
     ~Game() = default;
 
-    // Método principal - ejecuta el bucle del juego
+    // Metodo principal: ejecuta el bucle del juego
     void run();
 
     // Getters

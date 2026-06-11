@@ -9,6 +9,9 @@
 #include <optional>
 #include "Map.hpp"
 #include "Enemies/Pinata.hpp"
+#include "Towers/Tower.hpp"
+#include "Towers/NinoPalo.hpp"
+#include "TextureManager.hpp"
 
 // Forward declarations
 class Entity;
@@ -38,33 +41,34 @@ public:
     void setState(GameState newState) { currentState = newState; }
 
 private:
-    // Window setup
     unsigned int width;
     unsigned int height;
     sf::RenderWindow window;
 
-    // Game state
     GameState currentState;
     float deltaTime;
     sf::Clock gameClock;
 
-    // Player stats
     float playerMoney;
     int playerLives;
     int currentRound;
 
-    // Entities (para Fase 2 y 3)
     std::vector<std::shared_ptr<Entity>> entities;
     std::vector<std::shared_ptr<Pinata>> enemies;
+    std::vector<std::shared_ptr<Tower>> towers;
     Map map;
 
-    // Métodos privados
+    TowerType selectedTowerType;
+    bool towerSelected;
+    static constexpr float PANEL_WIDTH = 200.f;
+
     void handleEvents();
     void update();
     void render();
     void updateDebugInfo();
+    void placeTower(float x, float y);
+    void renderPanel();
 
-    // Debug
     sf::Font debugFont;
     std::string debugInfo;
 };

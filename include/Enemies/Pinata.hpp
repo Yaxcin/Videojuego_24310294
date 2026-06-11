@@ -10,12 +10,21 @@ enum class PinataType {
     ARCILLA,
     REVELACION,
     FRUTA,
-    HIPNOTIZADORA
+    HIPNOTIZADORA,
+    BEBE_ROSA,
+    BEBE_AZUL
 };
 
 class Pinata : public Entity {
 public:
     Pinata(const std::vector<sf::Vector2f>& waypoints, PinataType type = PinataType::ENGRUDO, int round = 1);
+    Pinata(
+        const std::vector<sf::Vector2f>& waypoints,
+        PinataType type,
+        int round,
+        const sf::Vector2f& startPosition,
+        size_t waypointIndex
+    );
 
     void update(float deltaTime) override;
     void render(sf::RenderWindow& window) const override;
@@ -27,6 +36,7 @@ public:
     bool hasReachedEnd() const { return reachedEnd; }
     int getReward() const { return reward; }
     PinataType getType() const { return type; }
+    size_t getCurrentWaypointIndex() const { return currentWaypoint; }
 
 protected:
     PinataType type;

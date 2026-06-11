@@ -78,10 +78,11 @@ private:
     void updateDebugInfo();
     void placeTower(float x, float y);
     void moveSelectedTower(float x, float y);
-    bool isValidTowerPosition(const sf::Vector2f& position, const std::shared_ptr<Tower>& ignoredTower = nullptr) const;
+    bool isValidTowerPosition(const sf::Vector2f& position, const std::shared_ptr<Tower>& ignoredTower = nullptr, bool showMessage = true) const;
     std::shared_ptr<Tower> findTowerAt(float x, float y) const;
     void clearTowerSelection();
     void renderPanel();
+    void renderTowerPreview();
     void startWave();
     void renderHUD();   
 

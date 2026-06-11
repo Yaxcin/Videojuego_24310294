@@ -16,12 +16,24 @@ namespace {
             case PinataType::REVELACION: return {85.f, 220, 22};
             case PinataType::FRUTA: return {82.f, 120, 12};
             case PinataType::HIPNOTIZADORA: return {78.f, 140, 16};
+            case PinataType::BEBE_ROSA: return {95.f, 45, 4};
+            case PinataType::BEBE_AZUL: return {95.f, 45, 4};
             default: return {90.f, 70, 8};
         }
     }
 }
 
 Pinata::Pinata(const std::vector<sf::Vector2f>& waypoints, PinataType type, int round)
+    : Pinata(waypoints, type, round, waypoints[0], 1) {
+}
+
+Pinata::Pinata(
+    const std::vector<sf::Vector2f>& waypoints,
+    PinataType type,
+    int round,
+    const sf::Vector2f& startPosition,
+    size_t waypointIndex
+)
     : Entity(waypoints[0].x, waypoints[0].y),
       type(type),
       speed(getStatsForType(type).speed + static_cast<float>(round) * 2.f),
@@ -32,7 +44,8 @@ Pinata::Pinata(const std::vector<sf::Vector2f>& waypoints, PinataType type, int 
       reward(getStatsForType(type).reward),
       reachedEnd(false),
       waypoints(waypoints),
-      currentWaypoint(1) {
+      currentWaypoint(std::max<size_t>(1, waypointIndex)) {
+    position = startPosition;
 
     // Visual temporal: cuadro de colores
     shape.setSize({30.f, 30.f});
@@ -90,6 +103,8 @@ sf::Color Pinata::getBaseColor() const {
         case PinataType::REVELACION: return sf::Color(245, 210, 60);
         case PinataType::FRUTA: return sf::Color(245, 130, 40);
         case PinataType::HIPNOTIZADORA: return sf::Color(150, 80, 220);
+        case PinataType::BEBE_ROSA: return sf::Color(255, 120, 190);
+        case PinataType::BEBE_AZUL: return sf::Color(80, 150, 255);
         default: return sf::Color(220, 50, 50);
     }
 }

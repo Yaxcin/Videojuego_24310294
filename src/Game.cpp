@@ -233,7 +233,7 @@ void Game::handleEvents() {
 
 void Game::update() {
     switch (currentState) {
-        case GameState::ROUND_ACTIVE:
+        case GameState::ROUND_ACTIVE: {
     // Spawnear enemigos automaticamente
     if (enemiesLeftToSpawn > 0) {
         spawnTimer -= deltaTime;
@@ -266,12 +266,30 @@ void Game::update() {
         }
         tower->combat(deltaTime, enemies, fireRateMultiplier);
     }
+    std::vector<std::shared_ptr<Pinata>> spawnedPinatas;
     enemies.erase(
         std::remove_if(enemies.begin(), enemies.end(),
-            [this](const std::shared_ptr<Pinata>& e) {
+            [this, &spawnedPinatas](const std::shared_ptr<Pinata>& e) {
                 if (!e) return true;
                 if (e->isAlive()) return false;
                 if (!e->hasReachedEnd()) {
+                    if (e->getType() == PinataType::REVELACION) {
+                        spawnedPinatas.push_back(std::make_shared<Pinata>(
+                            map.getWaypoints(),
+                            PinataType::BEBE_ROSA,
+                            currentRound,
+                            e->getPosition() + sf::Vector2f(-12.f, 0.f),
+                            e->getCurrentWaypointIndex()
+                        ));
+                        spawnedPinatas.push_back(std::make_shared<Pinata>(
+                            map.getWaypoints(),
+                            PinataType::BEBE_AZUL,
+                            currentRound,
+                            e->getPosition() + sf::Vector2f(12.f, 0.f),
+                            e->getCurrentWaypointIndex()
+                        ));
+                        std::cout << "[PINATA] Revelacion genero 2 pinatas bebe" << std::endl;
+                    }
                     addPlayerMoney(static_cast<float>(e->getReward()));
                     std::cout << "[REWARD] +" << e->getReward()
                               << " dulces. Total: " << playerMoney << std::endl;
@@ -280,6 +298,7 @@ void Game::update() {
             }),
         enemies.end()
     );
+    enemies.insert(enemies.end(), spawnedPinatas.begin(), spawnedPinatas.end());
     // Oleada terminada
     if (enemiesLeftToSpawn == 0 && enemies.empty()) {
         currentRound++;
@@ -288,6 +307,7 @@ void Game::update() {
         std::cout << "[WAVE] Oleada completada! Ronda: " << currentRound << std::endl;
     }
     break;
+    }
         default:
             break;
     }
@@ -310,13 +330,14 @@ void Game::render() {
     map.render(window);
 
     for (const auto& tower : towers) {
-        if (tower) tower->render(window);
+        if (tower && tower != selectedPlacedTower) tower->render(window);
     }
 
     for (const auto& enemy : enemies) {
         if (enemy && enemy->isAlive()) enemy->render(window);
     }
 
+    renderTowerPreview();
     renderPanel();
     renderHUD();
 
@@ -383,9 +404,9 @@ void Game::moveSelectedTower(float x, float y) {
     std::cout << "[TOWER] Movida a (" << x << ", " << y << ")" << std::endl;
 }
 
-bool Game::isValidTowerPosition(const sf::Vector2f& position, const std::shared_ptr<Tower>& ignoredTower) const {
+bool Game::isValidTowerPosition(const sf::Vector2f& position, const std::shared_ptr<Tower>& ignoredTower, bool showMessage) const {
     if (map.isOnPath(position)) {
-        std::cout << "[UI] No puedes colocar torres sobre el camino" << std::endl;
+        if (showMessage) std::cout << "[UI] No puedes colocar torres sobre el camino" << std::endl;
         return false;
     }
 
@@ -393,7 +414,7 @@ bool Game::isValidTowerPosition(const sf::Vector2f& position, const std::shared_
     for (const auto& existingTower : towers) {
         if (!existingTower || existingTower == ignoredTower) continue;
         if (distanceBetween(existingTower->getPosition(), position) < minTowerDistance) {
-            std::cout << "[UI] No puedes colocar torres tan juntas" << std::endl;
+            if (showMessage) std::cout << "[UI] No puedes colocar torres tan juntas" << std::endl;
             return false;
         }
     }
@@ -461,6 +482,64 @@ void Game::renderPanel() {
         costText.setFillColor(sf::Color(255, 215, 0));
         costText.setPosition({mapWidth + 105.f, slotY + 32.f});
         window.draw(costText);
+    }
+}
+
+void Game::renderTowerPreview() {
+    if (currentState != GameState::ROUND_PAUSE) return;
+    if (!towerSelected && !selectedPlacedTower) return;
+
+    sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
+    sf::Vector2f mousePos = window.mapPixelToCoords(mousePixel);
+    float mapWidth = static_cast<float>(width) - PANEL_WIDTH;
+
+    if (mousePos.x >= mapWidth) return;
+
+    std::shared_ptr<Tower> ignoredTower = selectedPlacedTower;
+    bool valid = isValidTowerPosition(mousePos, ignoredTower, false);
+    sf::Color previewColor = valid
+        ? sf::Color(80, 255, 120, 150)
+        : sf::Color(255, 80, 80, 150);
+
+    TowerType previewType = selectedPlacedTower ? selectedPlacedTower->getType() : selectedTowerType;
+    float previewRange = selectedPlacedTower ? selectedPlacedTower->getRange() : 0.f;
+
+    sf::Texture* tex = TextureManager::getInstance().getTowerTexture(previewType);
+    if (tex) {
+        sf::Sprite preview(*tex);
+        preview.setOrigin({32.f, 32.f});
+        preview.setPosition(mousePos);
+        preview.setColor(previewColor);
+        window.draw(preview);
+    } else {
+        sf::CircleShape placeholder(24.f);
+        placeholder.setOrigin({24.f, 24.f});
+        placeholder.setPosition(mousePos);
+        placeholder.setFillColor(previewColor);
+        window.draw(placeholder);
+    }
+
+    if (previewRange <= 0.f) {
+        switch (previewType) {
+            case TowerType::NINO_PALO: previewRange = 120.f; break;
+            case TowerType::VIEJO_MACHETE: previewRange = 90.f; break;
+            case TowerType::TAQUERO: previewRange = 150.f; break;
+            case TowerType::ABUELITA: previewRange = 2000.f; break;
+            case TowerType::DON_COHETES: previewRange = 170.f; break;
+            case TowerType::ORGANILLERO: previewRange = 170.f; break;
+            case TowerType::RASPADERO: previewRange = 160.f; break;
+            default: previewRange = 120.f; break;
+        }
+    }
+
+    if (previewRange < 1000.f) {
+        sf::CircleShape rangePreview(previewRange);
+        rangePreview.setOrigin({previewRange, previewRange});
+        rangePreview.setPosition(mousePos);
+        rangePreview.setFillColor(valid ? sf::Color(80, 255, 120, 25) : sf::Color(255, 80, 80, 25));
+        rangePreview.setOutlineColor(valid ? sf::Color(80, 255, 120, 120) : sf::Color(255, 80, 80, 120));
+        rangePreview.setOutlineThickness(2.f);
+        window.draw(rangePreview);
     }
 }
 

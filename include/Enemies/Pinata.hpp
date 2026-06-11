@@ -5,9 +5,17 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 
+enum class PinataType {
+    ENGRUDO,
+    ARCILLA,
+    REVELACION,
+    FRUTA,
+    HIPNOTIZADORA
+};
+
 class Pinata : public Entity {
 public:
-    Pinata(const std::vector<sf::Vector2f>& waypoints, float speed = 80.0f, int health = 100);
+    Pinata(const std::vector<sf::Vector2f>& waypoints, PinataType type = PinataType::ENGRUDO, int round = 1);
 
     void update(float deltaTime) override;
     void render(sf::RenderWindow& window) const override;
@@ -18,8 +26,10 @@ public:
     float getPathProgress() const;
     bool hasReachedEnd() const { return reachedEnd; }
     int getReward() const { return reward; }
+    PinataType getType() const { return type; }
 
 protected:
+    PinataType type;
     float speed;
     float speedMultiplier;
     float slowTimer;
@@ -35,6 +45,7 @@ protected:
     sf::RectangleShape shape; // Visual temporal hasta tener sprite
 
     void moveTowardsWaypoint(float deltaTime);
+    sf::Color getBaseColor() const;
 };
 
 #endif

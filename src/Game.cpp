@@ -44,6 +44,14 @@ namespace {
         sf::Vector2f diff = a - b;
         return std::sqrt(diff.x * diff.x + diff.y * diff.y);
     }
+
+    PinataType getSpawnTypeForRound(int round, int spawnedIndex) {
+        if (round >= 5 && spawnedIndex % 11 == 0) return PinataType::HIPNOTIZADORA;
+        if (round >= 4 && spawnedIndex % 7 == 0) return PinataType::REVELACION;
+        if (round >= 3 && spawnedIndex % 5 == 0) return PinataType::FRUTA;
+        if (round >= 2 && spawnedIndex % 3 == 0) return PinataType::ARCILLA;
+        return PinataType::ENGRUDO;
+    }
 }
 
 Game::Game(unsigned int w, unsigned int h) 
@@ -130,7 +138,7 @@ void Game::handleEvents() {
                 std::cout << "[DEBUG] -1 Life. Total: " << playerLives << std::endl;
             }
             else if (keyEvent->code == sf::Keyboard::Key::E) {
-                enemies.push_back(std::make_shared<Pinata>(map.getWaypoints()));
+                enemies.push_back(std::make_shared<Pinata>(map.getWaypoints(), PinataType::ENGRUDO, currentRound));
                 std::cout << "[DEBUG] Pinata spawned. Total: " << enemies.size() << std::endl;
             }
             else if (keyEvent->code == sf::Keyboard::Key::Space) {
@@ -232,8 +240,8 @@ void Game::update() {
         if (spawnTimer <= 0.f) {
             enemies.push_back(std::make_shared<Pinata>(
                 map.getWaypoints(),
-                60.f + currentRound * 5.f,
-                80 + currentRound * 20
+                getSpawnTypeForRound(currentRound, enemiesLeftToSpawn),
+                currentRound
             ));
             enemiesLeftToSpawn--;
             spawnTimer = spawnInterval;

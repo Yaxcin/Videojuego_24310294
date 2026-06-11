@@ -2,14 +2,34 @@
 #include <algorithm>
 #include <cmath>
 
-Pinata::Pinata(const std::vector<sf::Vector2f>& waypoints, float speed, int health)
+namespace {
+    struct PinataStats {
+        float speed;
+        int health;
+        int reward;
+    };
+
+    PinataStats getStatsForType(PinataType type) {
+        switch (type) {
+            case PinataType::ENGRUDO: return {90.f, 70, 8};
+            case PinataType::ARCILLA: return {68.f, 150, 14};
+            case PinataType::REVELACION: return {85.f, 220, 22};
+            case PinataType::FRUTA: return {82.f, 120, 12};
+            case PinataType::HIPNOTIZADORA: return {78.f, 140, 16};
+            default: return {90.f, 70, 8};
+        }
+    }
+}
+
+Pinata::Pinata(const std::vector<sf::Vector2f>& waypoints, PinataType type, int round)
     : Entity(waypoints[0].x, waypoints[0].y),
-      speed(speed),
+      type(type),
+      speed(getStatsForType(type).speed + static_cast<float>(round) * 2.f),
       speedMultiplier(1.f),
       slowTimer(0.f),
-      health(health),
-      maxHealth(health),
-      reward(10),
+      health(getStatsForType(type).health + round * 12),
+      maxHealth(getStatsForType(type).health + round * 12),
+      reward(getStatsForType(type).reward),
       reachedEnd(false),
       waypoints(waypoints),
       currentWaypoint(1) {
@@ -17,7 +37,7 @@ Pinata::Pinata(const std::vector<sf::Vector2f>& waypoints, float speed, int heal
     // Visual temporal — cuadro de colores
     shape.setSize({30.f, 30.f});
     shape.setOrigin({15.f, 15.f});
-    shape.setFillColor(sf::Color(220, 50, 50));
+    shape.setFillColor(getBaseColor());
     shape.setOutlineColor(sf::Color::White);
     shape.setOutlineThickness(2.f);
 }
@@ -49,7 +69,7 @@ void Pinata::update(float deltaTime) {
         slowTimer -= deltaTime;
         if (slowTimer <= 0.f) {
             speedMultiplier = 1.f;
-            shape.setFillColor(sf::Color(220, 50, 50));
+            shape.setFillColor(getBaseColor());
         }
     }
     moveTowardsWaypoint(deltaTime);
@@ -61,6 +81,17 @@ void Pinata::applySlow(float multiplier, float duration) {
     speedMultiplier = multiplier;
     slowTimer = duration;
     shape.setFillColor(sf::Color(80, 190, 255));
+}
+
+sf::Color Pinata::getBaseColor() const {
+    switch (type) {
+        case PinataType::ENGRUDO: return sf::Color(220, 50, 50);
+        case PinataType::ARCILLA: return sf::Color(70, 170, 80);
+        case PinataType::REVELACION: return sf::Color(245, 210, 60);
+        case PinataType::FRUTA: return sf::Color(245, 130, 40);
+        case PinataType::HIPNOTIZADORA: return sf::Color(150, 80, 220);
+        default: return sf::Color(220, 50, 50);
+    }
 }
 
 float Pinata::getPathProgress() const {

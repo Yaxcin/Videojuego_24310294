@@ -197,14 +197,23 @@ void Game::update() {
         if (enemy && enemy->isAlive()) enemy->update(deltaTime);
         if (enemy && enemy->hasReachedEnd()) damagePlayer(1);
     }
-    enemies.erase(
-        std::remove_if(enemies.begin(), enemies.end(),
-            [](const std::shared_ptr<Pinata>& e) { return !e || !e->isAlive(); }),
-        enemies.end()
-    );
     for (auto& tower : towers) {
         if (tower) tower->combat(deltaTime, enemies);
     }
+    enemies.erase(
+        std::remove_if(enemies.begin(), enemies.end(),
+            [this](const std::shared_ptr<Pinata>& e) {
+                if (!e) return true;
+                if (e->isAlive()) return false;
+                if (!e->hasReachedEnd()) {
+                    addPlayerMoney(static_cast<float>(e->getReward()));
+                    std::cout << "[REWARD] +" << e->getReward()
+                              << " dulces. Total: " << playerMoney << std::endl;
+                }
+                return true;
+            }),
+        enemies.end()
+    );
     // Oleada terminada
     if (enemiesLeftToSpawn == 0 && enemies.empty()) {
         currentRound++;

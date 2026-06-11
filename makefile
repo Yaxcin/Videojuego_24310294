@@ -21,6 +21,7 @@ $(EXECUTABLE): $(OBJECTS)
 	@echo "Ejecutable creado: $@"
 
 obj/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 run: $(EXECUTABLE)
@@ -31,7 +32,6 @@ clean:
 	@echo "Limpieza completada"
 
 rebuild: clean
-	mkdir obj
 	$(MAKE) all
 
 .PHONY: all run clean rebuild help

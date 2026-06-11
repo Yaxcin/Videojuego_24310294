@@ -35,12 +35,12 @@ Game::Game(unsigned int w, unsigned int h)
       playerMoney(500.0f),
       playerLives(100),
       currentRound(1),
-      map(w, h),
-      towerSelected(false),
-      selectedTowerType(TowerType::NINO_PALO),
       enemiesLeftToSpawn(0),
       spawnTimer(0.f),
-      spawnInterval(1.5f) {
+      spawnInterval(1.5f),
+      map(w, h),
+      selectedTowerType(TowerType::NINO_PALO),
+      towerSelected(false) {
     
     window.setFramerateLimit(60);
     TextureManager::getInstance().loadAllTowerTextures();
@@ -213,6 +213,8 @@ void Game::update() {
         std::cout << "[WAVE] Oleada completada! Ronda: " << currentRound << std::endl;
     }
     break;
+        default:
+            break;
     }
 
     for (auto& entity : entities) {

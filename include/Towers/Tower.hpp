@@ -13,12 +13,14 @@ public:
     Tower(float x, float y, TowerType type, float range, int damage, float fireRate, int cost);
 
     void update(float /*deltaTime*/) override {}
-    void combat(float deltaTime, std::vector<std::shared_ptr<Pinata>>& enemies);
+    void combat(float deltaTime, std::vector<std::shared_ptr<Pinata>>& enemies, float fireRateMultiplier = 1.f);
     void render(sf::RenderWindow& window) const override;
 
     int getCost() const { return cost; }
     float getRange() const { return range; }
     TowerType getType() const { return towerType; }
+    bool isSupportTower() const { return towerType == TowerType::ORGANILLERO; }
+    bool isInRange(const sf::Vector2f& targetPosition) const;
     void setSelected(bool s) { selected = s; }
 
 protected:
@@ -35,6 +37,8 @@ protected:
     sf::CircleShape rangeCircle;
 
     std::shared_ptr<Pinata> findTarget(std::vector<std::shared_ptr<Pinata>>& enemies);
+    std::shared_ptr<Pinata> findMostAdvancedTarget(std::vector<std::shared_ptr<Pinata>>& enemies);
+    void attackArea(std::shared_ptr<Pinata>& target, std::vector<std::shared_ptr<Pinata>>& enemies);
     virtual void attack(std::shared_ptr<Pinata>& target);
     void initSprite();
 };

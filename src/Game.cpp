@@ -25,6 +25,19 @@ namespace {
         if (exitButton.contains({x, y})) return MenuAction::Exit;
         return MenuAction::None;
     }
+
+    int getTowerCost(TowerType type) {
+        switch (type) {
+            case TowerType::NINO_PALO: return 75;
+            case TowerType::VIEJO_MACHETE: return 100;
+            case TowerType::TAQUERO: return 125;
+            case TowerType::ABUELITA: return 180;
+            case TowerType::DON_COHETES: return 200;
+            case TowerType::ORGANILLERO: return 160;
+            case TowerType::RASPADERO: return 120;
+            default: return 0;
+        }
+    }
 }
 
 Game::Game(unsigned int w, unsigned int h) 
@@ -198,7 +211,18 @@ void Game::update() {
         if (enemy && enemy->hasReachedEnd()) damagePlayer(1);
     }
     for (auto& tower : towers) {
-        if (tower) tower->combat(deltaTime, enemies);
+        if (!tower) continue;
+
+        float fireRateMultiplier = 1.f;
+        if (!tower->isSupportTower()) {
+            for (const auto& support : towers) {
+                if (support && support->isSupportTower() && support->isInRange(tower->getPosition())) {
+                    fireRateMultiplier = 1.35f;
+                    break;
+                }
+            }
+        }
+        tower->combat(deltaTime, enemies, fireRateMultiplier);
     }
     enemies.erase(
         std::remove_if(enemies.begin(), enemies.end(),
@@ -264,12 +288,31 @@ void Game::placeTower(float x, float y) {
     switch (selectedTowerType) {
         case TowerType::NINO_PALO:
             tower = std::make_shared<NinoPalo>(x, y);
-            cost = 75;
+            break;
+        case TowerType::VIEJO_MACHETE:
+            tower = std::make_shared<ViejoMachete>(x, y);
+            break;
+        case TowerType::TAQUERO:
+            tower = std::make_shared<Taquero>(x, y);
+            break;
+        case TowerType::ABUELITA:
+            tower = std::make_shared<Abuelita>(x, y);
+            break;
+        case TowerType::DON_COHETES:
+            tower = std::make_shared<DonCohetes>(x, y);
+            break;
+        case TowerType::ORGANILLERO:
+            tower = std::make_shared<Organillero>(x, y);
+            break;
+        case TowerType::RASPADERO:
+            tower = std::make_shared<Raspadero>(x, y);
             break;
         default:
             std::cout << "[UI] Torre aun no implementada" << std::endl;
             return;
     }
+
+    cost = tower->getCost();
 
     if (playerMoney >= cost) {
         playerMoney -= cost;
@@ -315,6 +358,11 @@ void Game::renderPanel() {
             spr.setPosition({mapWidth + 50.f, slotY + 44.f});
             window.draw(spr);
         }
+
+        sf::Text costText(hudFont, "$" + std::to_string(getTowerCost(tipos[i])), 20);
+        costText.setFillColor(sf::Color(255, 215, 0));
+        costText.setPosition({mapWidth + 105.f, slotY + 32.f});
+        window.draw(costText);
     }
 }
 

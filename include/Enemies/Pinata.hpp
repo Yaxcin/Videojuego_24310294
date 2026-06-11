@@ -14,11 +14,15 @@ public:
 
     int getHealth() const { return health; }
     void takeDamage(int damage) { health -= damage; if (health <= 0) alive = false; }
+    void applySlow(float multiplier, float duration);
+    float getPathProgress() const;
     bool hasReachedEnd() const { return reachedEnd; }
     int getReward() const { return reward; }
 
 protected:
     float speed;
+    float speedMultiplier;
+    float slowTimer;
     int health;
     int maxHealth;
     int reward;

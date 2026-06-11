@@ -11,6 +11,12 @@
 #include "Enemies/Pinata.hpp"
 #include "Towers/Tower.hpp"
 #include "Towers/NinoPalo.hpp"
+#include "Towers/ViejoMachete.hpp"
+#include "Towers/Taquero.hpp"
+#include "Towers/Abuelita.hpp"
+#include "Towers/DonCohetes.hpp"
+#include "Towers/Organillero.hpp"
+#include "Towers/Raspadero.hpp"
 #include "TextureManager.hpp"
 
 // Forward declarations

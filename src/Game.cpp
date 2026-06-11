@@ -32,7 +32,7 @@ namespace {
             case TowerType::NINO_PALO: return 75;
             case TowerType::VIEJO_MACHETE: return 100;
             case TowerType::TAQUERO: return 125;
-            case TowerType::ABUELITA: return 180;
+            case TowerType::ABUELITA: return 250;
             case TowerType::DON_COHETES: return 200;
             case TowerType::ORGANILLERO: return 160;
             case TowerType::RASPADERO: return 120;
@@ -256,7 +256,7 @@ void Game::update() {
         if (!tower) continue;
 
         float fireRateMultiplier = 1.f;
-        if (!tower->isSupportTower()) {
+        if (!tower->isSupportTower() && tower->getType() != TowerType::ABUELITA) {
             for (const auto& support : towers) {
                 if (support && support->isSupportTower() && support->isInRange(tower->getPosition())) {
                     fireRateMultiplier = 1.35f;

@@ -125,7 +125,10 @@ void Game::handleEvents() {
     float my = mousePos.y;
 
     if (currentState == GameState::MENU) {
-        MenuAction action = getMenuActionAt(mx, my);
+        sf::Vector2u menuSize = menuTexture.getSize();
+        float menuX = mx * static_cast<float>(menuSize.x) / static_cast<float>(width);
+        float menuY = my * static_cast<float>(menuSize.y) / static_cast<float>(height);
+        MenuAction action = getMenuActionAt(menuX, menuY);
         switch (action) {
             case MenuAction::Play:
                 currentState = GameState::ROUND_PAUSE;

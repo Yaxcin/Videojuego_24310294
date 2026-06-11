@@ -36,11 +36,16 @@ protected:
     sf::Texture texture;
     std::unique_ptr<sf::Sprite> sprite;
     sf::CircleShape rangeCircle;
+    sf::Vector2f lastTargetPosition;
+    float attackEffectTimer;
+    float areaEffectTimer;
 
     std::shared_ptr<Pinata> findTarget(std::vector<std::shared_ptr<Pinata>>& enemies);
     std::shared_ptr<Pinata> findMostAdvancedTarget(std::vector<std::shared_ptr<Pinata>>& enemies);
     void attackArea(std::shared_ptr<Pinata>& target, std::vector<std::shared_ptr<Pinata>>& enemies);
     virtual void attack(std::shared_ptr<Pinata>& target);
+    void renderAttackEffect(sf::RenderWindow& window) const;
+    sf::Color getAttackEffectColor() const;
     void initSprite();
 };
 

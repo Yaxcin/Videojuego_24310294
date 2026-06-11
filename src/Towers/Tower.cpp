@@ -4,7 +4,8 @@
 
 Tower::Tower(float x, float y, TowerType type, float range, int damage, float fireRate, int cost)
     : Entity(x, y), towerType(type), range(range), damage(damage),
-      fireRate(fireRate), fireCooldown(0.f), cost(cost), selected(false) {
+      fireRate(fireRate), fireCooldown(0.f), cost(cost), selected(false),
+      lastTargetPosition(x, y), attackEffectTimer(0.f), areaEffectTimer(0.f) {
 
     rangeCircle.setRadius(range);
     rangeCircle.setOrigin({range, range});
@@ -26,6 +27,8 @@ void Tower::initSprite() {
 }
 
 void Tower::combat(float deltaTime, std::vector<std::shared_ptr<Pinata>>& enemies, float fireRateMultiplier) {
+    if (attackEffectTimer > 0.f) attackEffectTimer -= deltaTime;
+    if (areaEffectTimer > 0.f) areaEffectTimer -= deltaTime;
     if (isSupportTower()) return;
 
     float effectiveMultiplier = std::max(1.f, fireRateMultiplier);
@@ -39,10 +42,13 @@ void Tower::combat(float deltaTime, std::vector<std::shared_ptr<Pinata>>& enemie
         : findTarget(enemies);
 
     if (target) {
+        lastTargetPosition = target->getPosition();
         if (towerType == TowerType::DON_COHETES) {
             attackArea(target, enemies);
+            areaEffectTimer = 0.25f;
         } else {
             attack(target);
+            attackEffectTimer = 0.12f;
         }
         fireCooldown = 1.f / fireRate;
     }
@@ -118,10 +124,62 @@ void Tower::attackArea(std::shared_ptr<Pinata>& target, std::vector<std::shared_
 }
 
 void Tower::render(sf::RenderWindow& window) const {
-    if (selected) {
+    if (selected || isSupportTower()) {
         window.draw(rangeCircle);
     }
     if (sprite) {
         window.draw(*sprite);
     }
+    renderAttackEffect(window);
 }  
+
+sf::Color Tower::getAttackEffectColor() const {
+    switch (towerType) {
+        case TowerType::NINO_PALO: return sf::Color(255, 245, 120, 210);
+        case TowerType::VIEJO_MACHETE: return sf::Color(210, 230, 255, 230);
+        case TowerType::TAQUERO: return sf::Color(120, 255, 120, 220);
+        case TowerType::ABUELITA: return sf::Color(255, 255, 255, 240);
+        case TowerType::DON_COHETES: return sf::Color(255, 120, 40, 120);
+        case TowerType::RASPADERO: return sf::Color(80, 210, 255, 220);
+        default: return sf::Color(255, 255, 255, 180);
+    }
+}
+
+void Tower::renderAttackEffect(sf::RenderWindow& window) const {
+    if (isSupportTower()) {
+        sf::CircleShape aura(range);
+        aura.setOrigin({range, range});
+        aura.setPosition(position);
+        aura.setFillColor(sf::Color(255, 230, 90, 18));
+        aura.setOutlineColor(sf::Color(255, 230, 90, 80));
+        aura.setOutlineThickness(2.f);
+        window.draw(aura);
+        return;
+    }
+
+    if (towerType == TowerType::DON_COHETES && areaEffectTimer > 0.f) {
+        float progress = areaEffectTimer / 0.25f;
+        float radius = 70.f * (1.1f - progress * 0.25f);
+        sf::CircleShape explosion(radius);
+        explosion.setOrigin({radius, radius});
+        explosion.setPosition(lastTargetPosition);
+        explosion.setFillColor(sf::Color(255, 120, 40, static_cast<std::uint8_t>(90 * progress)));
+        explosion.setOutlineColor(sf::Color(255, 220, 80, static_cast<std::uint8_t>(190 * progress)));
+        explosion.setOutlineThickness(3.f);
+        window.draw(explosion);
+        return;
+    }
+
+    if (attackEffectTimer <= 0.f) return;
+
+    sf::Vector2f diff = lastTargetPosition - position;
+    float length = std::sqrt(diff.x * diff.x + diff.y * diff.y);
+    if (length <= 0.f) return;
+
+    sf::RectangleShape beam({length, 4.f});
+    beam.setOrigin({0.f, 2.f});
+    beam.setPosition(position);
+    beam.setRotation(sf::radians(std::atan2(diff.y, diff.x)));
+    beam.setFillColor(getAttackEffectColor());
+    window.draw(beam);
+}

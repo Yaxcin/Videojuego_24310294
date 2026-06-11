@@ -49,6 +49,7 @@ void Pinata::update(float deltaTime) {
         slowTimer -= deltaTime;
         if (slowTimer <= 0.f) {
             speedMultiplier = 1.f;
+            shape.setFillColor(sf::Color(220, 50, 50));
         }
     }
     moveTowardsWaypoint(deltaTime);
@@ -59,6 +60,7 @@ void Pinata::applySlow(float multiplier, float duration) {
     if (multiplier > speedMultiplier && slowTimer > 0.f) return;
     speedMultiplier = multiplier;
     slowTimer = duration;
+    shape.setFillColor(sf::Color(80, 190, 255));
 }
 
 float Pinata::getPathProgress() const {

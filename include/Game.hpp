@@ -75,7 +75,9 @@ private:
     void renderHUD();   
 
     sf::Font hudFont;
-    std::string debugInfo;
+    std::string debugInfo;  
+    sf::Texture menuTexture;
+    sf::Sprite* menuSprite = nullptr;
 };
 
 #endif

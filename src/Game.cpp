@@ -24,6 +24,13 @@ Game::Game(unsigned int w, unsigned int h)
     if (!hudFont.openFromFile("assets/fonts/arial.ttf")) {
     std::cerr << "[FONT] No se pudo cargar la fuente" << std::endl;
    }
+   if (menuTexture.loadFromFile("assets/textures/MENU.png")) {
+    menuSprite = new sf::Sprite(menuTexture);
+    // Escalar para cubrir 1280x720
+    float scaleX = static_cast<float>(width) / menuTexture.getSize().x;
+    float scaleY = static_cast<float>(height) / menuTexture.getSize().y;
+    menuSprite->setScale({scaleX, scaleY});
+    }
     std::cout << "[GAME] Initialized: "     << width << "x" << height << std::endl;
 }
 
@@ -90,11 +97,19 @@ void Game::handleEvents() {
             }
         }
         else if (const auto* mouseEvent = event->getIf<sf::Event::MouseButtonPressed>()) {
-            float mx = static_cast<float>(mouseEvent->position.x);
-            float my = static_cast<float>(mouseEvent->position.y);
-            float mapWidth = static_cast<float>(width) - PANEL_WIDTH;
+    sf::Vector2f mousePos = window.mapPixelToCoords(mouseEvent->position);
+    float mx = mousePos.x;
+    float my = mousePos.y;
+
+    if (currentState == GameState::MENU) {
+        std::cout << "[MENU CLICK] x=" << mx << " y=" << my << std::endl;
+        return;
+    }
+
+    float mapWidth = static_cast<float>(width) - PANEL_WIDTH;
 
             if (mouseEvent->button == sf::Mouse::Button::Left) {
+                std::cout << "[MOUSE] x=" << mx << " y=" << my << std::endl;
                 if (mx >= mapWidth) {
                     // Click en panel - seleccionar torre
                     TowerType tipos[] = {
@@ -166,6 +181,11 @@ void Game::update() {
 
 void Game::render() {
     window.clear(sf::Color::Black);
+    if (currentState == GameState::MENU && menuSprite) {
+    window.draw(*menuSprite);
+    window.display();
+    return;
+}
 
     map.render(window);
 

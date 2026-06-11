@@ -1,4 +1,5 @@
 #include "Map.hpp"
+#include <algorithm>
 #include <cmath>
 
 Map::Map(unsigned int windowWidth, unsigned int windowHeight)
@@ -54,6 +55,36 @@ void Map::drawPath(sf::RenderWindow& window) const {
         corner.setFillColor(sf::Color(180, 140, 80));
         window.draw(corner);
     }
+}
+
+bool Map::isOnPath(const sf::Vector2f& point) const {
+    if (waypoints.size() < 2) return false;
+
+    constexpr float towerMargin = 18.f;
+    const float blockedRadius = (PATH_WIDTH / 2.f) + towerMargin;
+
+    for (size_t i = 0; i + 1 < waypoints.size(); ++i) {
+        sf::Vector2f a = waypoints[i];
+        sf::Vector2f b = waypoints[i + 1];
+        sf::Vector2f segment = b - a;
+        sf::Vector2f pointFromA = point - a;
+
+        float segmentLengthSq = segment.x * segment.x + segment.y * segment.y;
+        if (segmentLengthSq == 0.f) continue;
+
+        float t = (pointFromA.x * segment.x + pointFromA.y * segment.y) / segmentLengthSq;
+        t = std::clamp(t, 0.f, 1.f);
+
+        sf::Vector2f closest = a + segment * t;
+        sf::Vector2f diff = point - closest;
+        float distance = std::sqrt(diff.x * diff.x + diff.y * diff.y);
+
+        if (distance <= blockedRadius) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void Map::render(sf::RenderWindow& window) const {

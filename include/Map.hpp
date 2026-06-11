@@ -14,6 +14,9 @@ public:
     // Renderizar el mapa (camino + fondo)
     void render(sf::RenderWindow& window) const;
 
+    // Validar si una posicion esta sobre el camino
+    bool isOnPath(const sf::Vector2f& point) const;
+
     // Ancho del camino visual
     static constexpr float PATH_WIDTH = 60.0f;
 

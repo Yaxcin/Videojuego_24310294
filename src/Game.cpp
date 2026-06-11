@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <algorithm>
+#include <cmath>
 
 namespace {
     enum class MenuAction {
@@ -37,6 +38,11 @@ namespace {
             case TowerType::RASPADERO: return 120;
             default: return 0;
         }
+    }
+
+    float distanceBetween(const sf::Vector2f& a, const sf::Vector2f& b) {
+        sf::Vector2f diff = a - b;
+        return std::sqrt(diff.x * diff.x + diff.y * diff.y);
     }
 }
 
@@ -282,6 +288,25 @@ void Game::render() {
 }
 
 void Game::placeTower(float x, float y) {
+    if (currentState != GameState::ROUND_PAUSE) {
+        std::cout << "[UI] No puedes colocar torres durante la oleada" << std::endl;
+        return;
+    }
+
+    sf::Vector2f towerPosition{x, y};
+    if (map.isOnPath(towerPosition)) {
+        std::cout << "[UI] No puedes colocar torres sobre el camino" << std::endl;
+        return;
+    }
+
+    constexpr float minTowerDistance = 55.f;
+    for (const auto& existingTower : towers) {
+        if (existingTower && distanceBetween(existingTower->getPosition(), towerPosition) < minTowerDistance) {
+            std::cout << "[UI] No puedes colocar torres tan juntas" << std::endl;
+            return;
+        }
+    }
+
     std::shared_ptr<Tower> tower;
     int cost = 0;
 

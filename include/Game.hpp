@@ -72,8 +72,9 @@ private:
     void placeTower(float x, float y);
     void renderPanel();
     void startWave();
+    void renderHUD();   
 
-    sf::Font debugFont;
+    sf::Font hudFont;
     std::string debugInfo;
 };
 

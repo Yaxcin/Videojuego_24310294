@@ -21,7 +21,10 @@ Game::Game(unsigned int w, unsigned int h)
     
     window.setFramerateLimit(60);
     TextureManager::getInstance().loadAllTowerTextures();
-    std::cout << "[GAME] Initialized: " << width << "x" << height << std::endl;
+    if (!hudFont.openFromFile("assets/fonts/arial.ttf")) {
+    std::cerr << "[FONT] No se pudo cargar la fuente" << std::endl;
+   }
+    std::cout << "[GAME] Initialized: "     << width << "x" << height << std::endl;
 }
 
 void Game::run() {
@@ -175,6 +178,7 @@ void Game::render() {
     }
 
     renderPanel();
+    renderHUD();
 
     window.display();
 }
@@ -264,4 +268,48 @@ void Game::startWave() {
     spawnTimer = 0.f;
     std::cout << "[WAVE] Oleada " << currentRound << " iniciada! Enemigos: " 
               << enemiesLeftToSpawn << std::endl;
+}
+void Game::renderHUD() {
+    // Barra de fondo
+    sf::RectangleShape hudBar(sf::Vector2f(static_cast<float>(width) - PANEL_WIDTH, 40.f));
+    hudBar.setPosition({0.f, 0.f});
+    hudBar.setFillColor(sf::Color(0, 0, 0, 180));
+    window.draw(hudBar);
+
+    // Dinero
+    sf::Text moneyText(hudFont, "$" + std::to_string(static_cast<int>(playerMoney)), 20);
+    moneyText.setFillColor(sf::Color(255, 215, 0)); // dorado
+    moneyText.setPosition({10.f, 8.f});
+    window.draw(moneyText);
+
+    // Vidas
+    sf::Text livesText(hudFont, "Vidas: " + std::to_string(playerLives), 20);
+    livesText.setFillColor(sf::Color(255, 80, 80)); // rojo
+    livesText.setPosition({150.f, 8.f});
+    window.draw(livesText);
+
+    // Ronda
+    sf::Text roundText(hudFont, "Ronda: " + std::to_string(currentRound), 20);
+    roundText.setFillColor(sf::Color::White);
+    roundText.setPosition({320.f, 8.f});
+    window.draw(roundText);
+
+    // Mensaje de estado
+    std::string msg = "";
+    if (currentState == GameState::MENU || currentState == GameState::ROUND_PAUSE) {
+        msg = "SPACE: Iniciar oleada";
+    } else if (currentState == GameState::ROUND_ACTIVE) {
+        msg = "Enemigos: " + std::to_string(enemies.size() + enemiesLeftToSpawn);
+    } else if (currentState == GameState::DEFEAT) {
+        msg = "DERROTA - ESC para salir";
+    } else if (currentState == GameState::VICTORY) {
+        msg = "VICTORIA!";
+    }
+
+    if (!msg.empty()) {
+        sf::Text stateText(hudFont, msg, 20);
+        stateText.setFillColor(sf::Color::Yellow);
+        stateText.setPosition({480.f, 8.f});
+        window.draw(stateText);
+    }
 }

@@ -14,7 +14,10 @@ Game::Game(unsigned int w, unsigned int h)
       currentRound(1),
       map(w, h),
       towerSelected(false),
-      selectedTowerType(TowerType::NINO_PALO) {
+      selectedTowerType(TowerType::NINO_PALO),
+      enemiesLeftToSpawn(0),
+      spawnTimer(0.f),
+      spawnInterval(1.5f) {
     
     window.setFramerateLimit(60);
     TextureManager::getInstance().loadAllTowerTextures();
@@ -77,6 +80,11 @@ void Game::handleEvents() {
                 enemies.push_back(std::make_shared<Pinata>(map.getWaypoints()));
                 std::cout << "[DEBUG] Pinata spawned. Total: " << enemies.size() << std::endl;
             }
+            else if (keyEvent->code == sf::Keyboard::Key::Space) {
+             if (currentState == GameState::ROUND_PAUSE || currentState == GameState::MENU) {
+             startWave();
+                 }
+            }
         }
         else if (const auto* mouseEvent = event->getIf<sf::Event::MouseButtonPressed>()) {
             float mx = static_cast<float>(mouseEvent->position.x);
@@ -110,30 +118,40 @@ void Game::handleEvents() {
 void Game::update() {
     switch (currentState) {
         case GameState::ROUND_ACTIVE:
-            // Actualizar enemigos
-            for (auto& enemy : enemies) {
-                if (enemy && enemy->isAlive()) enemy->update(deltaTime);
-                if (enemy && enemy->hasReachedEnd()) {
-                    damagePlayer(1);
-                }
-            }
-            // Limpiar enemigos muertos/llegaron al final
-            enemies.erase(
-                std::remove_if(enemies.begin(), enemies.end(),
-                    [](const std::shared_ptr<Pinata>& e) { return !e || !e->isAlive(); }),
-                enemies.end()
-            );
-            // Torres atacan
-            for (auto& tower : towers) {
-                if (tower) tower->combat(deltaTime, enemies);
-            }
-            break;
-        case GameState::MENU:
-        case GameState::ROUND_PAUSE:
-        case GameState::COLLECTING_COINS:
-        case GameState::VICTORY:
-        case GameState::DEFEAT:
-            break;
+    // Spawnear enemigos automaticamente
+    if (enemiesLeftToSpawn > 0) {
+        spawnTimer -= deltaTime;
+        if (spawnTimer <= 0.f) {
+            enemies.push_back(std::make_shared<Pinata>(
+                map.getWaypoints(),
+                60.f + currentRound * 5.f,
+                80 + currentRound * 20
+            ));
+            enemiesLeftToSpawn--;
+            spawnTimer = spawnInterval;
+            std::cout << "[WAVE] Pinata spawned. Quedan: " << enemiesLeftToSpawn << std::endl;
+        }
+    }
+    for (auto& enemy : enemies) {
+        if (enemy && enemy->isAlive()) enemy->update(deltaTime);
+        if (enemy && enemy->hasReachedEnd()) damagePlayer(1);
+    }
+    enemies.erase(
+        std::remove_if(enemies.begin(), enemies.end(),
+            [](const std::shared_ptr<Pinata>& e) { return !e || !e->isAlive(); }),
+        enemies.end()
+    );
+    for (auto& tower : towers) {
+        if (tower) tower->combat(deltaTime, enemies);
+    }
+    // Oleada terminada
+    if (enemiesLeftToSpawn == 0 && enemies.empty()) {
+        currentRound++;
+        addPlayerMoney(50 + currentRound * 10);
+        currentState = GameState::ROUND_PAUSE;
+        std::cout << "[WAVE] Oleada completada! Ronda: " << currentRound << std::endl;
+    }
+    break;
     }
 
     for (auto& entity : entities) {
@@ -237,4 +255,13 @@ void Game::updateDebugInfo() {
         << " | Money: " << playerMoney
         << " | Lives: " << playerLives;
     debugInfo = oss.str();
+}
+
+void Game::startWave() {
+    currentState = GameState::ROUND_ACTIVE;
+    enemiesLeftToSpawn = 5 + currentRound * 3;
+    spawnInterval = std::max(0.4f, 1.5f - currentRound * 0.1f);
+    spawnTimer = 0.f;
+    std::cout << "[WAVE] Oleada " << currentRound << " iniciada! Enemigos: " 
+              << enemiesLeftToSpawn << std::endl;
 }

@@ -52,6 +52,9 @@ private:
     float playerMoney;
     int playerLives;
     int currentRound;
+    int enemiesLeftToSpawn;
+    float spawnTimer;
+    float spawnInterval;
 
     std::vector<std::shared_ptr<Entity>> entities;
     std::vector<std::shared_ptr<Pinata>> enemies;
@@ -68,6 +71,7 @@ private:
     void updateDebugInfo();
     void placeTower(float x, float y);
     void renderPanel();
+    void startWave();
 
     sf::Font debugFont;
     std::string debugInfo;

@@ -128,6 +128,19 @@ float Pinata::getPathProgress() const {
     return static_cast<float>(currentWaypoint) + segmentProgress;
 }
 
+int Pinata::getEscapeDamage() const {
+    switch (type) {
+        case PinataType::ENGRUDO: return 1;
+        case PinataType::BEBE_ROSA: return 1;
+        case PinataType::BEBE_AZUL: return 1;
+        case PinataType::FRUTA: return 2;
+        case PinataType::ARCILLA: return 3;
+        case PinataType::REVELACION: return 4;
+        case PinataType::HIPNOTIZADORA: return 5;
+        default: return 1;
+    }
+}
+
 void Pinata::render(sf::RenderWindow& window) const {
     if (!alive) return;
     window.draw(shape);

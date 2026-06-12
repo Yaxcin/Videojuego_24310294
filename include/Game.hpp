@@ -77,6 +77,7 @@ private:
     void render();
     void updateDebugInfo();
     void spawnDebugPinata(PinataType type);
+    int countTowersOfType(TowerType type) const;
     void placeTower(float x, float y);
     void moveSelectedTower(float x, float y);
     bool isValidTowerPosition(const sf::Vector2f& position, const std::shared_ptr<Tower>& ignoredTower = nullptr, bool showMessage = true) const;

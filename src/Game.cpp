@@ -6,6 +6,8 @@
 #include <cmath>
 
 namespace {
+    constexpr int MAX_ROUNDS = 15;
+
     enum class MenuAction {
         None,
         Play,
@@ -40,25 +42,43 @@ namespace {
         }
     }
 
+    int getTowerLimit(TowerType type) {
+        switch (type) {
+            case TowerType::NINO_PALO: return 8;
+            case TowerType::VIEJO_MACHETE: return 4;
+            case TowerType::TAQUERO: return 5;
+            case TowerType::ABUELITA: return 2;
+            case TowerType::DON_COHETES: return 3;
+            case TowerType::ORGANILLERO: return 2;
+            case TowerType::RASPADERO: return 3;
+            default: return 0;
+        }
+    }
+
     float distanceBetween(const sf::Vector2f& a, const sf::Vector2f& b) {
         sf::Vector2f diff = a - b;
         return std::sqrt(diff.x * diff.x + diff.y * diff.y);
     }
 
     PinataType getSpawnTypeForRound(int round, int spawnedIndex) {
-        if (round >= 7 && spawnedIndex % 13 == 0) return PinataType::HIPNOTIZADORA;
-        if (round >= 5 && spawnedIndex % 9 == 0) return PinataType::REVELACION;
-        if (round >= 3 && spawnedIndex % 7 == 0) return PinataType::FRUTA;
-        if (round >= 2 && spawnedIndex % ((round < 4) ? 5 : 4) == 0) return PinataType::ARCILLA;
+        if (round >= 12 && spawnedIndex % 8 == 0) return PinataType::HIPNOTIZADORA;
+        if (round >= 9 && spawnedIndex % 6 == 0) return PinataType::REVELACION;
+        if (round >= 6 && spawnedIndex % 5 == 0) return PinataType::FRUTA;
+        if (round >= 4 && spawnedIndex % 4 == 0) return PinataType::ARCILLA;
+        if (round >= 2 && spawnedIndex % 5 == 0) return PinataType::ARCILLA;
         return PinataType::ENGRUDO;
     }
 
     int getEnemyCountForRound(int round) {
-        return 4 + round * 2 + std::max(0, round - 4);
+        return 4 + round * 2 + std::max(0, round - 5);
     }
 
     float getSpawnIntervalForRound(int round) {
-        return std::max(0.55f, 1.6f - round * 0.08f);
+        return std::max(0.48f, 1.55f - round * 0.07f);
+    }
+
+    int getRoundClearBonus(int round) {
+        return 45 + round * 8;
     }
 
     const char* getPinataDebugName(PinataType type) {
@@ -288,7 +308,15 @@ void Game::update() {
     }
     for (auto& enemy : enemies) {
         if (enemy && enemy->isAlive()) enemy->update(deltaTime);
-        if (enemy && enemy->hasReachedEnd()) damagePlayer(1);
+        if (enemy && enemy->hasReachedEnd()) damagePlayer(enemy->getEscapeDamage());
+    }
+    if (playerLives <= 0) {
+        playerLives = 0;
+        currentState = GameState::DEFEAT;
+        towerSelected = false;
+        clearTowerSelection();
+        std::cout << "[GAME] Derrota" << std::endl;
+        break;
     }
     updateTowerRangeVisuals();
     updateHypnosisAuras();
@@ -333,7 +361,9 @@ void Game::update() {
                         std::cout << "[PINATA] Revelacion genero 2 pinatas bebe" << std::endl;
                     }
                     if (e->getType() == PinataType::FRUTA) {
-                        slowTowersNear(e->getPosition(), 150.f, 0.5f, 2.5f);
+                        float slowRadius = e->isSlowed() ? 85.f : 150.f;
+                        float slowDuration = e->isSlowed() ? 1.25f : 2.5f;
+                        slowTowersNear(e->getPosition(), slowRadius, 0.5f, slowDuration);
                         std::cout << "[PINATA] Fruta ralentizo torres cercanas" << std::endl;
                     }
                     addPlayerMoney(static_cast<float>(e->getReward()));
@@ -347,8 +377,16 @@ void Game::update() {
     enemies.insert(enemies.end(), spawnedPinatas.begin(), spawnedPinatas.end());
     // Oleada terminada
     if (enemiesLeftToSpawn == 0 && enemies.empty()) {
+        if (currentRound >= MAX_ROUNDS) {
+            currentState = GameState::VICTORY;
+            towerSelected = false;
+            clearTowerSelection();
+            std::cout << "[GAME] Victoria! Completaste " << MAX_ROUNDS << " rondas" << std::endl;
+            break;
+        }
+
+        addPlayerMoney(static_cast<float>(getRoundClearBonus(currentRound)));
         currentRound++;
-        addPlayerMoney(50 + currentRound * 10);
         currentState = GameState::ROUND_PAUSE;
         std::cout << "[WAVE] Oleada completada! Ronda: " << currentRound << std::endl;
     }
@@ -397,6 +435,16 @@ void Game::spawnDebugPinata(PinataType type) {
               << ". Total: " << enemies.size() << std::endl;
 }
 
+int Game::countTowersOfType(TowerType type) const {
+    int total = 0;
+    for (const auto& tower : towers) {
+        if (tower && tower->getType() == type) {
+            total++;
+        }
+    }
+    return total;
+}
+
 void Game::placeTower(float x, float y) {
     if (currentState != GameState::ROUND_PAUSE) {
         std::cout << "[UI] No puedes colocar torres durante la oleada" << std::endl;
@@ -405,6 +453,14 @@ void Game::placeTower(float x, float y) {
 
     sf::Vector2f towerPosition{x, y};
     if (!isValidTowerPosition(towerPosition)) return;
+
+    int currentTypeCount = countTowersOfType(selectedTowerType);
+    int towerLimit = getTowerLimit(selectedTowerType);
+    if (currentTypeCount >= towerLimit) {
+        std::cout << "[UI] Limite de " << getTowerName(selectedTowerType)
+                  << " alcanzado (" << currentTypeCount << "/" << towerLimit << ")" << std::endl;
+        return;
+    }
 
     std::shared_ptr<Tower> tower;
     int cost = 0;
@@ -593,8 +649,15 @@ void Game::renderPanel() {
 
         sf::Text costText(hudFont, "$" + std::to_string(getTowerCost(tipos[i])), 20);
         costText.setFillColor(sf::Color(255, 215, 0));
-        costText.setPosition({mapWidth + 105.f, slotY + 32.f});
+        costText.setPosition({mapWidth + 105.f, slotY + 22.f});
         window.draw(costText);
+
+        int placedCount = countTowersOfType(tipos[i]);
+        int towerLimit = getTowerLimit(tipos[i]);
+        sf::Text limitText(hudFont, std::to_string(placedCount) + "/" + std::to_string(towerLimit), 16);
+        limitText.setFillColor(placedCount >= towerLimit ? sf::Color(255, 120, 120) : sf::Color(210, 210, 210));
+        limitText.setPosition({mapWidth + 108.f, slotY + 52.f});
+        window.draw(limitText);
     }
 }
 
@@ -674,6 +737,8 @@ void Game::updateDebugInfo() {
 }
 
 void Game::startWave() {
+    if (currentState == GameState::VICTORY || currentState == GameState::DEFEAT) return;
+
     towerSelected = false;
     clearTowerSelection();
     currentState = GameState::ROUND_ACTIVE;
@@ -703,7 +768,7 @@ void Game::renderHUD() {
     window.draw(livesText);
 
     // Ronda
-    sf::Text roundText(hudFont, "Ronda: " + std::to_string(currentRound), 20);
+    sf::Text roundText(hudFont, "Ronda: " + std::to_string(currentRound) + "/" + std::to_string(MAX_ROUNDS), 20);
     roundText.setFillColor(sf::Color::White);
     roundText.setPosition({320.f, 8.f});
     window.draw(roundText);

@@ -15,7 +15,11 @@ namespace {
             return baseDamage;
         }
 
-        if (towerType == TowerType::VIEJO_MACHETE || towerType == TowerType::ABUELITA) {
+        if (towerType == TowerType::VIEJO_MACHETE) {
+            return std::max(1, static_cast<int>(baseDamage * 1.25f));
+        }
+
+        if (towerType == TowerType::ABUELITA || towerType == TowerType::DON_COHETES) {
             return baseDamage;
         }
 

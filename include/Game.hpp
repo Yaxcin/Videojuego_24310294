@@ -81,6 +81,7 @@ private:
     bool isValidTowerPosition(const sf::Vector2f& position, const std::shared_ptr<Tower>& ignoredTower = nullptr, bool showMessage = true) const;
     std::shared_ptr<Tower> findTowerAt(float x, float y) const;
     void clearTowerSelection();
+    void slowTowersNear(const sf::Vector2f& position, float radius, float multiplier, float duration);
     void renderPanel();
     void renderTowerPreview();
     void startWave();

@@ -5,7 +5,8 @@
 Tower::Tower(float x, float y, TowerType type, float range, int damage, float fireRate, int cost)
     : Entity(x, y), towerType(type), range(range), damage(damage),
       fireRate(fireRate), fireCooldown(0.f), cost(cost), selected(false),
-      lastTargetPosition(x, y), attackEffectTimer(0.f), areaEffectTimer(0.f) {
+      lastTargetPosition(x, y), attackEffectTimer(0.f), areaEffectTimer(0.f),
+      attackSlowTimer(0.f), attackSlowMultiplier(1.f) {
 
     rangeCircle.setRadius(range);
     rangeCircle.setOrigin({range, range});
@@ -29,9 +30,15 @@ void Tower::initSprite() {
 void Tower::combat(float deltaTime, std::vector<std::shared_ptr<Pinata>>& enemies, float fireRateMultiplier) {
     if (attackEffectTimer > 0.f) attackEffectTimer -= deltaTime;
     if (areaEffectTimer > 0.f) areaEffectTimer -= deltaTime;
+    if (attackSlowTimer > 0.f) {
+        attackSlowTimer -= deltaTime;
+        if (attackSlowTimer <= 0.f) {
+            attackSlowMultiplier = 1.f;
+        }
+    }
     if (isSupportTower()) return;
 
-    float effectiveMultiplier = std::max(1.f, fireRateMultiplier);
+    float effectiveMultiplier = std::max(0.1f, fireRateMultiplier * attackSlowMultiplier);
     if (fireCooldown > 0.f) {
         fireCooldown -= deltaTime * effectiveMultiplier;
         return;
@@ -66,6 +73,11 @@ void Tower::moveTo(float x, float y) {
     if (sprite) {
         sprite->setPosition(position);
     }
+}
+
+void Tower::applyAttackSlow(float multiplier, float duration) {
+    attackSlowMultiplier = std::min(attackSlowMultiplier, multiplier);
+    attackSlowTimer = std::max(attackSlowTimer, duration);
 }
 
 std::shared_ptr<Pinata> Tower::findTarget(std::vector<std::shared_ptr<Pinata>>& enemies) {
@@ -129,6 +141,15 @@ void Tower::render(sf::RenderWindow& window) const {
     }
     if (sprite) {
         window.draw(*sprite);
+    }
+    if (isAttackSlowed()) {
+        sf::CircleShape slowMarker(34.f);
+        slowMarker.setOrigin({34.f, 34.f});
+        slowMarker.setPosition(position);
+        slowMarker.setFillColor(sf::Color(255, 180, 40, 55));
+        slowMarker.setOutlineColor(sf::Color(255, 230, 90, 180));
+        slowMarker.setOutlineThickness(3.f);
+        window.draw(slowMarker);
     }
     renderAttackEffect(window);
 }  

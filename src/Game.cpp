@@ -259,7 +259,8 @@ void Game::update() {
         if (!tower->isSupportTower()) {
             for (const auto& support : towers) {
                 if (support && support->isSupportTower() && support->isInRange(tower->getPosition())) {
-                    fireRateMultiplier = (tower->getType() == TowerType::ABUELITA) ? 1.05f : 1.35f;
+                    float baseBuff = (tower->getType() == TowerType::ABUELITA) ? 1.05f : 1.35f;
+                    fireRateMultiplier = 1.f + (baseBuff - 1.f) * support->getSupportMultiplierScale();
                     break;
                 }
             }
@@ -289,6 +290,10 @@ void Game::update() {
                             e->getCurrentWaypointIndex()
                         ));
                         std::cout << "[PINATA] Revelacion genero 2 pinatas bebe" << std::endl;
+                    }
+                    if (e->getType() == PinataType::FRUTA) {
+                        slowTowersNear(e->getPosition(), 150.f, 0.5f, 2.5f);
+                        std::cout << "[PINATA] Fruta ralentizo torres cercanas" << std::endl;
                     }
                     addPlayerMoney(static_cast<float>(e->getReward()));
                     std::cout << "[REWARD] +" << e->getReward()
@@ -439,6 +444,15 @@ void Game::clearTowerSelection() {
     if (selectedPlacedTower) {
         selectedPlacedTower->setSelected(false);
         selectedPlacedTower = nullptr;
+    }
+}
+
+void Game::slowTowersNear(const sf::Vector2f& position, float radius, float multiplier, float duration) {
+    for (auto& tower : towers) {
+        if (!tower) continue;
+        if (distanceBetween(tower->getPosition(), position) <= radius) {
+            tower->applyAttackSlow(multiplier, duration);
+        }
     }
 }
 

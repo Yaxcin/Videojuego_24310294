@@ -20,9 +20,12 @@ public:
     float getRange() const { return range; }
     TowerType getType() const { return towerType; }
     bool isSupportTower() const { return towerType == TowerType::ORGANILLERO; }
+    bool isAttackSlowed() const { return attackSlowTimer > 0.f; }
+    float getSupportMultiplierScale() const { return isAttackSlowed() ? attackSlowMultiplier : 1.f; }
     bool isInRange(const sf::Vector2f& targetPosition) const;
     void moveTo(float x, float y);
     void setSelected(bool s) { selected = s; }
+    void applyAttackSlow(float multiplier, float duration);
 
 protected:
     TowerType towerType;
@@ -39,6 +42,8 @@ protected:
     sf::Vector2f lastTargetPosition;
     float attackEffectTimer;
     float areaEffectTimer;
+    float attackSlowTimer;
+    float attackSlowMultiplier;
 
     std::shared_ptr<Pinata> findTarget(std::vector<std::shared_ptr<Pinata>>& enemies);
     std::shared_ptr<Pinata> findMostAdvancedTarget(std::vector<std::shared_ptr<Pinata>>& enemies);

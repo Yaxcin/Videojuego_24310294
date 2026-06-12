@@ -69,6 +69,7 @@ private:
 
     TowerType selectedTowerType;
     bool towerSelected;
+    bool roundPreviewVisible;
     std::shared_ptr<Tower> selectedPlacedTower;
     static constexpr float PANEL_WIDTH = 200.f;
 
@@ -90,6 +91,7 @@ private:
     float getOrganilleroRangeScale() const;
     void renderPanel();
     void renderTowerPreview();
+    void renderRoundPreview();
     void startWave();
     void renderHUD();   
 

@@ -8,6 +8,15 @@
 namespace {
     constexpr int MAX_ROUNDS = 15;
 
+    struct WavePreview {
+        int total = 0;
+        int engrudo = 0;
+        int arcilla = 0;
+        int fruta = 0;
+        int revelacion = 0;
+        int hipnotizadora = 0;
+    };
+
     enum class MenuAction {
         None,
         Play,
@@ -81,6 +90,35 @@ namespace {
         return 45 + round * 8;
     }
 
+    WavePreview getWavePreviewForRound(int round) {
+        WavePreview preview;
+        preview.total = getEnemyCountForRound(round);
+
+        for (int remaining = preview.total; remaining > 0; --remaining) {
+            switch (getSpawnTypeForRound(round, remaining)) {
+                case PinataType::ENGRUDO:
+                    preview.engrudo++;
+                    break;
+                case PinataType::ARCILLA:
+                    preview.arcilla++;
+                    break;
+                case PinataType::FRUTA:
+                    preview.fruta++;
+                    break;
+                case PinataType::REVELACION:
+                    preview.revelacion++;
+                    break;
+                case PinataType::HIPNOTIZADORA:
+                    preview.hipnotizadora++;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        return preview;
+    }
+
     const char* getPinataDebugName(PinataType type) {
         switch (type) {
             case PinataType::ENGRUDO: return "Engrudo";
@@ -109,6 +147,7 @@ Game::Game(unsigned int w, unsigned int h)
       map(w, h),
       selectedTowerType(TowerType::NINO_PALO),
       towerSelected(false),
+      roundPreviewVisible(false),
       selectedPlacedTower(nullptr) {
     
     window.setFramerateLimit(60);
@@ -156,6 +195,7 @@ void Game::handleEvents() {
             }
             else if (keyEvent->code == sf::Keyboard::Key::Num3) {
                 currentState = GameState::ROUND_PAUSE;
+                roundPreviewVisible = true;
                 std::cout << "[STATE] ROUND_PAUSE" << std::endl;
             }
             else if (keyEvent->code == sf::Keyboard::Key::Num4) {
@@ -198,9 +238,17 @@ void Game::handleEvents() {
                 spawnDebugPinata(PinataType::BEBE_AZUL);
             }
             else if (keyEvent->code == sf::Keyboard::Key::Space) {
-             if (currentState == GameState::ROUND_PAUSE || currentState == GameState::MENU) {
-             startWave();
-                 }
+                if (currentState == GameState::ROUND_PAUSE) {
+                    if (roundPreviewVisible) {
+                        roundPreviewVisible = false;
+                        std::cout << "[UI] Resumen cerrado. Puedes colocar torres" << std::endl;
+                    } else {
+                        startWave();
+                    }
+                } else if (currentState == GameState::MENU) {
+                    currentState = GameState::ROUND_PAUSE;
+                    roundPreviewVisible = true;
+                }
             }
         }
         else if (const auto* mouseEvent = event->getIf<sf::Event::MouseButtonPressed>()) {
@@ -216,6 +264,7 @@ void Game::handleEvents() {
         switch (action) {
             case MenuAction::Play:
                 currentState = GameState::ROUND_PAUSE;
+                roundPreviewVisible = true;
                 std::cout << "[MENU] Iniciar fiesta" << std::endl;
                 break;
             case MenuAction::Shop:
@@ -263,6 +312,10 @@ void Game::handleEvents() {
                         }
                     }
                 } else {
+                    if (currentState == GameState::ROUND_PAUSE && roundPreviewVisible) {
+                        std::cout << "[UI] Cierra el resumen con SPACE antes de colocar torres" << std::endl;
+                        return;
+                    }
                     auto clickedTower = findTowerAt(mx, my);
                     if (currentState == GameState::ROUND_PAUSE && selectedPlacedTower) {
                         if (clickedTower == selectedPlacedTower) {
@@ -388,6 +441,7 @@ void Game::update() {
         addPlayerMoney(static_cast<float>(getRoundClearBonus(currentRound)));
         currentRound++;
         currentState = GameState::ROUND_PAUSE;
+        roundPreviewVisible = true;
         std::cout << "[WAVE] Oleada completada! Ronda: " << currentRound << std::endl;
     }
     break;
@@ -425,6 +479,7 @@ void Game::render() {
     renderTowerPreview();
     renderPanel();
     renderHUD();
+    renderRoundPreview();
 
     window.display();
 }
@@ -448,6 +503,10 @@ int Game::countTowersOfType(TowerType type) const {
 void Game::placeTower(float x, float y) {
     if (currentState != GameState::ROUND_PAUSE) {
         std::cout << "[UI] No puedes colocar torres durante la oleada" << std::endl;
+        return;
+    }
+    if (roundPreviewVisible) {
+        std::cout << "[UI] Cierra el resumen con SPACE antes de colocar torres" << std::endl;
         return;
     }
 
@@ -663,6 +722,7 @@ void Game::renderPanel() {
 
 void Game::renderTowerPreview() {
     if (currentState != GameState::ROUND_PAUSE) return;
+    if (roundPreviewVisible) return;
     if (!towerSelected && !selectedPlacedTower) return;
 
     sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
@@ -717,6 +777,60 @@ void Game::renderTowerPreview() {
         rangePreview.setOutlineThickness(2.f);
         window.draw(rangePreview);
     }
+}
+
+void Game::renderRoundPreview() {
+    if (currentState != GameState::ROUND_PAUSE || !roundPreviewVisible) return;
+
+    WavePreview preview = getWavePreviewForRound(currentRound);
+    float mapWidth = static_cast<float>(width) - PANEL_WIDTH;
+
+    sf::RectangleShape overlay({mapWidth, static_cast<float>(height)});
+    overlay.setPosition({0.f, 0.f});
+    overlay.setFillColor(sf::Color(0, 0, 0, 145));
+    window.draw(overlay);
+
+    sf::RectangleShape box({520.f, 430.f});
+    box.setOrigin({260.f, 215.f});
+    box.setPosition({mapWidth / 2.f, static_cast<float>(height) / 2.f});
+    box.setFillColor(sf::Color(20, 20, 20, 210));
+    box.setOutlineColor(sf::Color(255, 255, 255, 120));
+    box.setOutlineThickness(2.f);
+    window.draw(box);
+
+    float x = mapWidth / 2.f - 220.f;
+    float y = static_cast<float>(height) / 2.f - 175.f;
+
+    sf::Text title(hudFont, "Proxima ronda " + std::to_string(currentRound) + "/" + std::to_string(MAX_ROUNDS), 30);
+    title.setFillColor(sf::Color::White);
+    title.setPosition({x, y});
+    window.draw(title);
+
+    sf::Text moneyText(hudFont, "Dulces: $" + std::to_string(static_cast<int>(playerMoney)), 22);
+    moneyText.setFillColor(sf::Color(255, 215, 0));
+    moneyText.setPosition({x, y + 52.f});
+    window.draw(moneyText);
+
+    std::vector<std::string> lines = {
+        "Total de pinatas: " + std::to_string(preview.total),
+        "Engrudo: " + std::to_string(preview.engrudo),
+        "Arcilla: " + std::to_string(preview.arcilla),
+        "Fruta: " + std::to_string(preview.fruta),
+        "Revelacion: " + std::to_string(preview.revelacion),
+        "Hipnotizadora: " + std::to_string(preview.hipnotizadora)
+    };
+
+    for (size_t i = 0; i < lines.size(); ++i) {
+        sf::Text line(hudFont, lines[i], 22);
+        line.setFillColor(sf::Color::White);
+        line.setPosition({x, y + 100.f + static_cast<float>(i) * 34.f});
+        window.draw(line);
+    }
+
+    sf::Text hint(hudFont, "SPACE para preparar defensas", 24);
+    hint.setFillColor(sf::Color::Yellow);
+    hint.setPosition({x, y + 335.f});
+    window.draw(hint);
 }
 
 void Game::updateDebugInfo() {
@@ -776,7 +890,9 @@ void Game::renderHUD() {
     // Mensaje de estado
     std::string msg = "";
     if (currentState == GameState::MENU || currentState == GameState::ROUND_PAUSE) {
-        msg = "SPACE: Iniciar oleada";
+        msg = (currentState == GameState::ROUND_PAUSE && roundPreviewVisible)
+            ? "SPACE: Preparar defensas"
+            : "SPACE: Iniciar oleada";
     } else if (currentState == GameState::ROUND_ACTIVE) {
         msg = "Enemigos: " + std::to_string(enemies.size() + enemiesLeftToSpawn);
     } else if (currentState == GameState::DEFEAT) {

@@ -46,11 +46,19 @@ namespace {
     }
 
     PinataType getSpawnTypeForRound(int round, int spawnedIndex) {
-        if (round >= 5 && spawnedIndex % 11 == 0) return PinataType::HIPNOTIZADORA;
-        if (round >= 4 && spawnedIndex % 7 == 0) return PinataType::REVELACION;
-        if (round >= 3 && spawnedIndex % 5 == 0) return PinataType::FRUTA;
-        if (round >= 2 && spawnedIndex % 3 == 0) return PinataType::ARCILLA;
+        if (round >= 7 && spawnedIndex % 13 == 0) return PinataType::HIPNOTIZADORA;
+        if (round >= 5 && spawnedIndex % 9 == 0) return PinataType::REVELACION;
+        if (round >= 3 && spawnedIndex % 7 == 0) return PinataType::FRUTA;
+        if (round >= 2 && spawnedIndex % ((round < 4) ? 5 : 4) == 0) return PinataType::ARCILLA;
         return PinataType::ENGRUDO;
+    }
+
+    int getEnemyCountForRound(int round) {
+        return 4 + round * 2 + std::max(0, round - 4);
+    }
+
+    float getSpawnIntervalForRound(int round) {
+        return std::max(0.55f, 1.6f - round * 0.08f);
     }
 
     const char* getPinataDebugName(PinataType type) {
@@ -669,8 +677,8 @@ void Game::startWave() {
     towerSelected = false;
     clearTowerSelection();
     currentState = GameState::ROUND_ACTIVE;
-    enemiesLeftToSpawn = 5 + currentRound * 3;
-    spawnInterval = std::max(0.4f, 1.5f - currentRound * 0.1f);
+    enemiesLeftToSpawn = getEnemyCountForRound(currentRound);
+    spawnInterval = getSpawnIntervalForRound(currentRound);
     spawnTimer = 0.f;
     std::cout << "[WAVE] Oleada " << currentRound << " iniciada! Enemigos: " 
               << enemiesLeftToSpawn << std::endl;

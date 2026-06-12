@@ -3,6 +3,7 @@
 
 #include <SFML/Graphics.hpp>
 #include <vector>
+#include <memory>
 
 class Map {
 public:
@@ -18,13 +19,16 @@ public:
     bool isOnPath(const sf::Vector2f& point) const;
 
     // Ancho del camino visual
-    static constexpr float PATH_WIDTH = 60.0f;
+    static constexpr float PATH_WIDTH = 76.0f;
 
 private:
     std::vector<sf::Vector2f> waypoints;
     unsigned int winW, winH;
+    sf::Texture backgroundTexture;
+    std::unique_ptr<sf::Sprite> backgroundSprite;
 
     void initWaypoints();
+    void initBackground();
     void drawPath(sf::RenderWindow& window) const;
 };
 

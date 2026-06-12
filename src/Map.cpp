@@ -5,24 +5,33 @@
 Map::Map(unsigned int windowWidth, unsigned int windowHeight)
     : winW(windowWidth), winH(windowHeight) {
     initWaypoints();
+    initBackground();
 }
 
 void Map::initWaypoints() {
-    // Camino en zigzag estilo Bloons, de izquierda a derecha
-    // Ajustado a resolucion 1280x720
-    float w = static_cast<float>(winW);
-    float h = static_cast<float>(winH);
-
     waypoints = {
-        {-50.f,        h * 0.20f},   // Entrada (fuera de pantalla)
-        {w * 0.20f,    h * 0.20f},   // Tramo 1 - horizontal
-        {w * 0.20f,    h * 0.75f},   // Tramo 2 - baja
-        {w * 0.45f,    h * 0.75f},   // Tramo 3 - horizontal
-        {w * 0.45f,    h * 0.25f},   // Tramo 4 - sube
-        {w * 0.70f,    h * 0.25f},   // Tramo 5 - horizontal
-        {w * 0.70f,    h * 0.75f},   // Tramo 6 - baja
-        {w + 50.f,     h * 0.75f},   // Salida (fuera de pantalla)
+        {-50.f, 240.f},
+        {320.f, 240.f},
+        {320.f, 535.f},
+        {610.f, 535.f},
+        {610.f, 155.f},
+        {900.f, 155.f},
+        {900.f, 475.f},
+        {1120.f, 475.f},
     };
+}
+
+void Map::initBackground() {
+    if (backgroundTexture.loadFromFile("assets/textures/mapa.png")) {
+        backgroundSprite = std::make_unique<sf::Sprite>(backgroundTexture);
+        sf::Vector2u texSize = backgroundTexture.getSize();
+        if (texSize.x > 0 && texSize.y > 0) {
+            backgroundSprite->setScale({
+                static_cast<float>(winW) / static_cast<float>(texSize.x),
+                static_cast<float>(winH) / static_cast<float>(texSize.y)
+            });
+        }
+    }
 }
 
 void Map::drawPath(sf::RenderWindow& window) const {
@@ -88,11 +97,13 @@ bool Map::isOnPath(const sf::Vector2f& point) const {
 }
 
 void Map::render(sf::RenderWindow& window) const {
-    // Fondo verde (pasto mexicano)
+    if (backgroundSprite) {
+        window.draw(*backgroundSprite);
+        return;
+    }
+
     sf::RectangleShape bg(sf::Vector2f(static_cast<float>(winW), static_cast<float>(winH)));
     bg.setFillColor(sf::Color(60, 120, 40));
     window.draw(bg);
-
-    // Camino
     drawPath(window);
 }

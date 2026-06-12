@@ -27,7 +27,7 @@ Tower::Tower(float x, float y, TowerType type, float range, int damage, float fi
     : Entity(x, y), towerType(type), range(range), damage(damage),
       fireRate(fireRate), fireCooldown(0.f), cost(cost), selected(false),
       lastTargetPosition(x, y), attackEffectTimer(0.f), areaEffectTimer(0.f),
-      attackSlowTimer(0.f), attackSlowMultiplier(1.f), hypnosisSources(0) {
+      attackSlowTimer(0.f), attackSlowMultiplier(1.f), hypnotized(false) {
 
     rangeCircle.setRadius(range);
     rangeCircle.setOrigin({range, range});
@@ -101,14 +101,8 @@ void Tower::applyAttackSlow(float multiplier, float duration) {
     attackSlowTimer = std::max(attackSlowTimer, duration);
 }
 
-void Tower::addHypnosis() {
-    if (!isImmuneToHypnosis()) {
-        hypnosisSources++;
-    }
-}
-
-void Tower::removeHypnosis() {
-    hypnosisSources = std::max(0, hypnosisSources - 1);
+void Tower::setHypnotized(bool value) {
+    hypnotized = value && !isImmuneToHypnosis();
 }
 
 std::shared_ptr<Pinata> Tower::findTarget(std::vector<std::shared_ptr<Pinata>>& enemies) {

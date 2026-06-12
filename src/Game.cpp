@@ -52,6 +52,19 @@ namespace {
         if (round >= 2 && spawnedIndex % 3 == 0) return PinataType::ARCILLA;
         return PinataType::ENGRUDO;
     }
+
+    const char* getPinataDebugName(PinataType type) {
+        switch (type) {
+            case PinataType::ENGRUDO: return "Engrudo";
+            case PinataType::ARCILLA: return "Arcilla";
+            case PinataType::REVELACION: return "Revelacion";
+            case PinataType::FRUTA: return "Fruta";
+            case PinataType::HIPNOTIZADORA: return "Hipnotizadora";
+            case PinataType::BEBE_ROSA: return "Bebe rosa";
+            case PinataType::BEBE_AZUL: return "Bebe azul";
+            default: return "Desconocida";
+        }
+    }
 }
 
 Game::Game(unsigned int w, unsigned int h) 
@@ -138,8 +151,23 @@ void Game::handleEvents() {
                 std::cout << "[DEBUG] -1 Life. Total: " << playerLives << std::endl;
             }
             else if (keyEvent->code == sf::Keyboard::Key::E) {
-                enemies.push_back(std::make_shared<Pinata>(map.getWaypoints(), PinataType::ENGRUDO, currentRound));
-                std::cout << "[DEBUG] Pinata spawned. Total: " << enemies.size() << std::endl;
+                spawnDebugPinata(PinataType::ENGRUDO);
+            }
+            else if (keyEvent->code == sf::Keyboard::Key::R) {
+                spawnDebugPinata(PinataType::ARCILLA);
+            }
+            else if (keyEvent->code == sf::Keyboard::Key::T) {
+                spawnDebugPinata(PinataType::REVELACION);
+            }
+            else if (keyEvent->code == sf::Keyboard::Key::F) {
+                spawnDebugPinata(PinataType::FRUTA);
+            }
+            else if (keyEvent->code == sf::Keyboard::Key::H) {
+                spawnDebugPinata(PinataType::HIPNOTIZADORA);
+            }
+            else if (keyEvent->code == sf::Keyboard::Key::B) {
+                spawnDebugPinata(PinataType::BEBE_ROSA);
+                spawnDebugPinata(PinataType::BEBE_AZUL);
             }
             else if (keyEvent->code == sf::Keyboard::Key::Space) {
              if (currentState == GameState::ROUND_PAUSE || currentState == GameState::MENU) {
@@ -245,10 +273,6 @@ void Game::update() {
                 currentRound
             );
             enemies.push_back(newEnemy);
-            if (spawnType == PinataType::HIPNOTIZADORA) {
-                hypnotizeTowersNear(newEnemy, 190.f);
-                std::cout << "[PINATA] Hipnotizadora afecto torres cercanas" << std::endl;
-            }
             enemiesLeftToSpawn--;
             spawnTimer = spawnInterval;
             std::cout << "[WAVE] Pinata spawned. Quedan: " << enemiesLeftToSpawn << std::endl;
@@ -258,6 +282,7 @@ void Game::update() {
         if (enemy && enemy->isAlive()) enemy->update(deltaTime);
         if (enemy && enemy->hasReachedEnd()) damagePlayer(1);
     }
+    updateHypnosisAuras();
     for (auto& tower : towers) {
         if (!tower) continue;
 
@@ -279,9 +304,6 @@ void Game::update() {
             [this, &spawnedPinatas](const std::shared_ptr<Pinata>& e) {
                 if (!e) return true;
                 if (e->isAlive()) return false;
-                if (e->getType() == PinataType::HIPNOTIZADORA) {
-                    clearHypnosisFrom(e.get());
-                }
                 if (!e->hasReachedEnd()) {
                     if (e->getType() == PinataType::REVELACION) {
                         spawnedPinatas.push_back(std::make_shared<Pinata>(
@@ -356,6 +378,12 @@ void Game::render() {
     renderHUD();
 
     window.display();
+}
+
+void Game::spawnDebugPinata(PinataType type) {
+    enemies.push_back(std::make_shared<Pinata>(map.getWaypoints(), type, currentRound));
+    std::cout << "[DEBUG] Spawn " << getPinataDebugName(type)
+              << ". Total: " << enemies.size() << std::endl;
 }
 
 void Game::placeTower(float x, float y) {
@@ -465,29 +493,23 @@ void Game::slowTowersNear(const sf::Vector2f& position, float radius, float mult
     }
 }
 
-void Game::hypnotizeTowersNear(const std::shared_ptr<Pinata>& source, float radius) {
-    if (!source) return;
+void Game::updateHypnosisAuras() {
+    constexpr float hypnosisRadius = 190.f;
 
-    auto& affectedTowers = hypnosisLinks[source.get()];
     for (auto& tower : towers) {
-        if (!tower || tower->isImmuneToHypnosis()) continue;
-        if (distanceBetween(tower->getPosition(), source->getPosition()) <= radius) {
-            tower->addHypnosis();
-            affectedTowers.push_back(tower);
+        if (tower) tower->setHypnotized(false);
+    }
+
+    for (const auto& enemy : enemies) {
+        if (!enemy || !enemy->isAlive() || enemy->getType() != PinataType::HIPNOTIZADORA) continue;
+
+        for (auto& tower : towers) {
+            if (!tower || tower->isImmuneToHypnosis()) continue;
+            if (distanceBetween(tower->getPosition(), enemy->getPosition()) <= hypnosisRadius) {
+                tower->setHypnotized(true);
+            }
         }
     }
-}
-
-void Game::clearHypnosisFrom(const Pinata* source) {
-    auto it = hypnosisLinks.find(source);
-    if (it == hypnosisLinks.end()) return;
-
-    for (auto& weakTower : it->second) {
-        if (auto tower = weakTower.lock()) {
-            tower->removeHypnosis();
-        }
-    }
-    hypnosisLinks.erase(it);
 }
 
 void Game::renderPanel() {

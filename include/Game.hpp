@@ -7,7 +7,6 @@
 #include <vector>
 #include <memory>
 #include <optional>
-#include <unordered_map>
 #include "Map.hpp"
 #include "Enemies/Pinata.hpp"
 #include "Towers/Tower.hpp"
@@ -66,7 +65,6 @@ private:
     std::vector<std::shared_ptr<Entity>> entities;
     std::vector<std::shared_ptr<Pinata>> enemies;
     std::vector<std::shared_ptr<Tower>> towers;
-    std::unordered_map<const Pinata*, std::vector<std::weak_ptr<Tower>>> hypnosisLinks;
     Map map;
 
     TowerType selectedTowerType;
@@ -78,14 +76,14 @@ private:
     void update();
     void render();
     void updateDebugInfo();
+    void spawnDebugPinata(PinataType type);
     void placeTower(float x, float y);
     void moveSelectedTower(float x, float y);
     bool isValidTowerPosition(const sf::Vector2f& position, const std::shared_ptr<Tower>& ignoredTower = nullptr, bool showMessage = true) const;
     std::shared_ptr<Tower> findTowerAt(float x, float y) const;
     void clearTowerSelection();
     void slowTowersNear(const sf::Vector2f& position, float radius, float multiplier, float duration);
-    void hypnotizeTowersNear(const std::shared_ptr<Pinata>& source, float radius);
-    void clearHypnosisFrom(const Pinata* source);
+    void updateHypnosisAuras();
     void renderPanel();
     void renderTowerPreview();
     void startWave();

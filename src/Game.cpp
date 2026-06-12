@@ -238,11 +238,17 @@ void Game::update() {
     if (enemiesLeftToSpawn > 0) {
         spawnTimer -= deltaTime;
         if (spawnTimer <= 0.f) {
-            enemies.push_back(std::make_shared<Pinata>(
+            auto spawnType = getSpawnTypeForRound(currentRound, enemiesLeftToSpawn);
+            auto newEnemy = std::make_shared<Pinata>(
                 map.getWaypoints(),
-                getSpawnTypeForRound(currentRound, enemiesLeftToSpawn),
+                spawnType,
                 currentRound
-            ));
+            );
+            enemies.push_back(newEnemy);
+            if (spawnType == PinataType::HIPNOTIZADORA) {
+                hypnotizeTowersNear(newEnemy, 190.f);
+                std::cout << "[PINATA] Hipnotizadora afecto torres cercanas" << std::endl;
+            }
             enemiesLeftToSpawn--;
             spawnTimer = spawnInterval;
             std::cout << "[WAVE] Pinata spawned. Quedan: " << enemiesLeftToSpawn << std::endl;
@@ -273,6 +279,9 @@ void Game::update() {
             [this, &spawnedPinatas](const std::shared_ptr<Pinata>& e) {
                 if (!e) return true;
                 if (e->isAlive()) return false;
+                if (e->getType() == PinataType::HIPNOTIZADORA) {
+                    clearHypnosisFrom(e.get());
+                }
                 if (!e->hasReachedEnd()) {
                     if (e->getType() == PinataType::REVELACION) {
                         spawnedPinatas.push_back(std::make_shared<Pinata>(
@@ -454,6 +463,31 @@ void Game::slowTowersNear(const sf::Vector2f& position, float radius, float mult
             tower->applyAttackSlow(multiplier, duration);
         }
     }
+}
+
+void Game::hypnotizeTowersNear(const std::shared_ptr<Pinata>& source, float radius) {
+    if (!source) return;
+
+    auto& affectedTowers = hypnosisLinks[source.get()];
+    for (auto& tower : towers) {
+        if (!tower || tower->isImmuneToHypnosis()) continue;
+        if (distanceBetween(tower->getPosition(), source->getPosition()) <= radius) {
+            tower->addHypnosis();
+            affectedTowers.push_back(tower);
+        }
+    }
+}
+
+void Game::clearHypnosisFrom(const Pinata* source) {
+    auto it = hypnosisLinks.find(source);
+    if (it == hypnosisLinks.end()) return;
+
+    for (auto& weakTower : it->second) {
+        if (auto tower = weakTower.lock()) {
+            tower->removeHypnosis();
+        }
+    }
+    hypnosisLinks.erase(it);
 }
 
 void Game::renderPanel() {

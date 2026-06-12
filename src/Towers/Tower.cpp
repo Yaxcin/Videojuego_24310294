@@ -1,12 +1,33 @@
 #include "Towers/Tower.hpp"
 #include <algorithm>
 #include <cmath>
+#include <random>
+
+namespace {
+    std::mt19937& rng() {
+        static std::random_device seed;
+        static std::mt19937 generator(seed());
+        return generator;
+    }
+
+    int getEffectiveDamage(TowerType towerType, int baseDamage, const std::shared_ptr<Pinata>& target) {
+        if (!target || target->getType() != PinataType::ARCILLA) {
+            return baseDamage;
+        }
+
+        if (towerType == TowerType::VIEJO_MACHETE || towerType == TowerType::ABUELITA) {
+            return baseDamage;
+        }
+
+        return std::max(1, static_cast<int>(baseDamage * 0.6f));
+    }
+}
 
 Tower::Tower(float x, float y, TowerType type, float range, int damage, float fireRate, int cost)
     : Entity(x, y), towerType(type), range(range), damage(damage),
       fireRate(fireRate), fireCooldown(0.f), cost(cost), selected(false),
       lastTargetPosition(x, y), attackEffectTimer(0.f), areaEffectTimer(0.f),
-      attackSlowTimer(0.f), attackSlowMultiplier(1.f) {
+      attackSlowTimer(0.f), attackSlowMultiplier(1.f), hypnosisSources(0) {
 
     rangeCircle.setRadius(range);
     rangeCircle.setOrigin({range, range});
@@ -80,6 +101,16 @@ void Tower::applyAttackSlow(float multiplier, float duration) {
     attackSlowTimer = std::max(attackSlowTimer, duration);
 }
 
+void Tower::addHypnosis() {
+    if (!isImmuneToHypnosis()) {
+        hypnosisSources++;
+    }
+}
+
+void Tower::removeHypnosis() {
+    hypnosisSources = std::max(0, hypnosisSources - 1);
+}
+
 std::shared_ptr<Pinata> Tower::findTarget(std::vector<std::shared_ptr<Pinata>>& enemies) {
     std::shared_ptr<Pinata> nearest = nullptr;
     float minDist = range;
@@ -112,20 +143,24 @@ std::shared_ptr<Pinata> Tower::findMostAdvancedTarget(std::vector<std::shared_pt
 }
 
 void Tower::attack(std::shared_ptr<Pinata>& target) {
-    target->takeDamage(damage);
+    if (missesFromHypnosis()) return;
+
+    target->takeDamage(getEffectiveDamage(towerType, damage, target));
     if (towerType == TowerType::RASPADERO) {
         target->applySlow(0.5f, 2.f);
     }
 }
 
 void Tower::attackArea(std::shared_ptr<Pinata>& target, std::vector<std::shared_ptr<Pinata>>& enemies) {
+    if (missesFromHypnosis()) return;
+
     constexpr int maxTargets = 10;
     int hits = 0;
 
     for (auto& e : enemies) {
         if (!e || !e->isAlive()) continue;
         if (isInRange(e->getPosition())) {
-            e->takeDamage(damage);
+            e->takeDamage(getEffectiveDamage(towerType, damage, e));
             if (e == target) {
                 lastTargetPosition = e->getPosition();
             }
@@ -150,6 +185,15 @@ void Tower::render(sf::RenderWindow& window) const {
         slowMarker.setOutlineColor(sf::Color(255, 230, 90, 180));
         slowMarker.setOutlineThickness(3.f);
         window.draw(slowMarker);
+    }
+    if (isHypnotized()) {
+        sf::CircleShape hypnosisMarker(40.f);
+        hypnosisMarker.setOrigin({40.f, 40.f});
+        hypnosisMarker.setPosition(position);
+        hypnosisMarker.setFillColor(sf::Color(150, 80, 220, 45));
+        hypnosisMarker.setOutlineColor(sf::Color(210, 150, 255, 210));
+        hypnosisMarker.setOutlineThickness(3.f);
+        window.draw(hypnosisMarker);
     }
     renderAttackEffect(window);
 }  
@@ -203,4 +247,11 @@ void Tower::renderAttackEffect(sf::RenderWindow& window) const {
     beam.setRotation(sf::radians(std::atan2(diff.y, diff.x)));
     beam.setFillColor(getAttackEffectColor());
     window.draw(beam);
+}
+
+bool Tower::missesFromHypnosis() const {
+    if (!isHypnotized()) return false;
+
+    std::uniform_real_distribution<float> chance(0.f, 1.f);
+    return chance(rng()) < 0.75f;
 }

@@ -21,11 +21,15 @@ public:
     TowerType getType() const { return towerType; }
     bool isSupportTower() const { return towerType == TowerType::ORGANILLERO; }
     bool isAttackSlowed() const { return attackSlowTimer > 0.f; }
+    bool isHypnotized() const { return hypnosisSources > 0; }
+    bool isImmuneToHypnosis() const { return towerType == TowerType::ABUELITA || towerType == TowerType::ORGANILLERO; }
     float getSupportMultiplierScale() const { return isAttackSlowed() ? attackSlowMultiplier : 1.f; }
     bool isInRange(const sf::Vector2f& targetPosition) const;
     void moveTo(float x, float y);
     void setSelected(bool s) { selected = s; }
     void applyAttackSlow(float multiplier, float duration);
+    void addHypnosis();
+    void removeHypnosis();
 
 protected:
     TowerType towerType;
@@ -44,11 +48,13 @@ protected:
     float areaEffectTimer;
     float attackSlowTimer;
     float attackSlowMultiplier;
+    int hypnosisSources;
 
     std::shared_ptr<Pinata> findTarget(std::vector<std::shared_ptr<Pinata>>& enemies);
     std::shared_ptr<Pinata> findMostAdvancedTarget(std::vector<std::shared_ptr<Pinata>>& enemies);
     void attackArea(std::shared_ptr<Pinata>& target, std::vector<std::shared_ptr<Pinata>>& enemies);
     virtual void attack(std::shared_ptr<Pinata>& target);
+    bool missesFromHypnosis() const;
     void renderAttackEffect(sf::RenderWindow& window) const;
     sf::Color getAttackEffectColor() const;
     void initSprite();

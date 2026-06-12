@@ -138,6 +138,7 @@ Game::Game(unsigned int w, unsigned int h)
       window(sf::VideoMode(sf::Vector2u(w, h)), "Tower Defense Mexicano"),
       currentState(GameState::MENU),
       deltaTime(0.0f),
+      gameSpeedMultiplier(1.f),
       playerMoney(500.0f),
       playerLives(100),
       currentRound(1),
@@ -168,8 +169,9 @@ Game::Game(unsigned int w, unsigned int h)
 void Game::run() {
     std::cout << "[GAME] Starting main loop..." << std::endl;
     while (window.isOpen()) {
-        deltaTime = gameClock.restart().asSeconds();
+        float rawDeltaTime = gameClock.restart().asSeconds();
         handleEvents();
+        deltaTime = rawDeltaTime * ((currentState == GameState::ROUND_ACTIVE) ? gameSpeedMultiplier : 1.f);
         update();
         render();
     }
@@ -217,6 +219,9 @@ void Game::handleEvents() {
             else if (keyEvent->code == sf::Keyboard::Key::L) {
                 damagePlayer(1);
                 std::cout << "[DEBUG] -1 Life. Total: " << playerLives << std::endl;
+            }
+            else if (keyEvent->code == sf::Keyboard::Key::Tab) {
+                toggleGameSpeed();
             }
             else if (keyEvent->code == sf::Keyboard::Key::E) {
                 spawnDebugPinata(PinataType::ENGRUDO);
@@ -283,6 +288,10 @@ void Game::handleEvents() {
     }
 
     float mapWidth = static_cast<float>(width) - PANEL_WIDTH;
+            if (mouseEvent->button == sf::Mouse::Button::Left && isSpeedButtonAt(mx, my)) {
+                toggleGameSpeed();
+                return;
+            }
 
             if (mouseEvent->button == sf::Mouse::Button::Right) {
                 towerSelected = false;
@@ -498,6 +507,17 @@ int Game::countTowersOfType(TowerType type) const {
         }
     }
     return total;
+}
+
+void Game::toggleGameSpeed() {
+    gameSpeedMultiplier = (gameSpeedMultiplier > 1.f) ? 1.f : 2.f;
+    std::cout << "[UI] Velocidad x" << static_cast<int>(gameSpeedMultiplier) << std::endl;
+}
+
+bool Game::isSpeedButtonAt(float x, float y) const {
+    float mapWidth = static_cast<float>(width) - PANEL_WIDTH;
+    sf::FloatRect speedButton({mapWidth - 145.f, 5.f}, {130.f, 30.f});
+    return speedButton.contains({x, y});
 }
 
 void Game::placeTower(float x, float y) {
@@ -864,7 +884,8 @@ void Game::startWave() {
 }
 void Game::renderHUD() {
     // Barra de fondo
-    sf::RectangleShape hudBar(sf::Vector2f(static_cast<float>(width) - PANEL_WIDTH, 40.f));
+    float mapWidth = static_cast<float>(width) - PANEL_WIDTH;
+    sf::RectangleShape hudBar(sf::Vector2f(mapWidth, 40.f));
     hudBar.setPosition({0.f, 0.f});
     hudBar.setFillColor(sf::Color(0, 0, 0, 180));
     window.draw(hudBar);
@@ -907,4 +928,16 @@ void Game::renderHUD() {
         stateText.setPosition({480.f, 8.f});
         window.draw(stateText);
     }
+
+    sf::RectangleShape speedButton({130.f, 30.f});
+    speedButton.setPosition({mapWidth - 145.f, 5.f});
+    speedButton.setFillColor(gameSpeedMultiplier > 1.f ? sf::Color(90, 120, 40, 230) : sf::Color(45, 45, 45, 230));
+    speedButton.setOutlineColor(sf::Color(255, 255, 255, 140));
+    speedButton.setOutlineThickness(1.f);
+    window.draw(speedButton);
+
+    sf::Text speedText(hudFont, "VEL x" + std::to_string(static_cast<int>(gameSpeedMultiplier)), 18);
+    speedText.setFillColor(sf::Color::White);
+    speedText.setPosition({mapWidth - 125.f, 10.f});
+    window.draw(speedText);
 }

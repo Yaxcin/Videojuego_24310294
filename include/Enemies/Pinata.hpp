@@ -3,6 +3,7 @@
 
 #include "Entity.hpp"
 #include <SFML/Graphics.hpp>
+#include <memory>
 #include <vector>
 
 enum class PinataType {
@@ -54,10 +55,15 @@ protected:
     const std::vector<sf::Vector2f>& waypoints;
     size_t currentWaypoint;
 
-    sf::RectangleShape shape; // Visual temporal hasta tener sprite
+    sf::RectangleShape shape;
+    sf::Texture texture;
+    std::unique_ptr<sf::Sprite> sprite;
 
     void moveTowardsWaypoint(float deltaTime);
     sf::Color getBaseColor() const;
+    const char* getTexturePath() const;
+    void initSprite();
+    void applyVisualColor(const sf::Color& color);
 };
 
 #endif

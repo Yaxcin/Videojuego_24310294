@@ -53,6 +53,8 @@ Pinata::Pinata(
     shape.setFillColor(getBaseColor());
     shape.setOutlineColor(sf::Color::White);
     shape.setOutlineThickness(2.f);
+    shape.setPosition(position);
+    initSprite();
 }
 
 void Pinata::moveTowardsWaypoint(float deltaTime) {
@@ -82,18 +84,21 @@ void Pinata::update(float deltaTime) {
         slowTimer -= deltaTime;
         if (slowTimer <= 0.f) {
             speedMultiplier = 1.f;
-            shape.setFillColor(getBaseColor());
+            applyVisualColor(getBaseColor());
         }
     }
     moveTowardsWaypoint(deltaTime);
     shape.setPosition(position);
+    if (sprite) {
+        sprite->setPosition(position);
+    }
 }
 
 void Pinata::applySlow(float multiplier, float duration) {
     if (multiplier > speedMultiplier && slowTimer > 0.f) return;
     speedMultiplier = multiplier;
     slowTimer = duration;
-    shape.setFillColor(sf::Color(80, 190, 255));
+    applyVisualColor(sf::Color(80, 190, 255));
 }
 
 sf::Color Pinata::getBaseColor() const {
@@ -106,6 +111,58 @@ sf::Color Pinata::getBaseColor() const {
         case PinataType::BEBE_ROSA: return sf::Color(255, 120, 190);
         case PinataType::BEBE_AZUL: return sf::Color(80, 150, 255);
         default: return sf::Color(220, 50, 50);
+    }
+}
+
+const char* Pinata::getTexturePath() const {
+    switch (type) {
+        case PinataType::ENGRUDO:
+            return "assets/textures/pinatas/engrudo.png";
+        case PinataType::ARCILLA:
+            return "assets/textures/pinatas/arcilla.png";
+        case PinataType::REVELACION:
+            return "assets/textures/pinatas/revelacion.png";
+        case PinataType::FRUTA:
+            return "assets/textures/pinatas/fruta.png";
+        case PinataType::HIPNOTIZADORA:
+            return "assets/textures/pinatas/hipnotizadora.png";
+        case PinataType::BEBE_ROSA:
+        case PinataType::BEBE_AZUL:
+            return "assets/textures/pinatas/revelacion.png";
+        default:
+            return "assets/textures/pinatas/engrudo.png";
+    }
+}
+
+void Pinata::initSprite() {
+    if (!texture.loadFromFile(getTexturePath())) return;
+
+    sprite = std::make_unique<sf::Sprite>(texture);
+    const auto size = texture.getSize();
+    sprite->setOrigin({static_cast<float>(size.x) / 2.f, static_cast<float>(size.y) / 2.f});
+    sprite->setPosition(position);
+
+    const float maxDimension = static_cast<float>(std::max(size.x, size.y));
+    if (maxDimension > 0.f) {
+        const float scale = 48.f / maxDimension;
+        sprite->setScale({scale, scale});
+    }
+
+    if (type == PinataType::BEBE_ROSA || type == PinataType::BEBE_AZUL) {
+        sprite->setColor(getBaseColor());
+    }
+}
+
+void Pinata::applyVisualColor(const sf::Color& color) {
+    shape.setFillColor(color);
+    if (!sprite) return;
+
+    if (slowTimer > 0.f) {
+        sprite->setColor(sf::Color(130, 215, 255));
+    } else if (type == PinataType::BEBE_ROSA || type == PinataType::BEBE_AZUL) {
+        sprite->setColor(getBaseColor());
+    } else {
+        sprite->setColor(sf::Color::White);
     }
 }
 
@@ -143,7 +200,11 @@ int Pinata::getEscapeDamage() const {
 
 void Pinata::render(sf::RenderWindow& window) const {
     if (!alive) return;
-    window.draw(shape);
+    if (sprite) {
+        window.draw(*sprite);
+    } else {
+        window.draw(shape);
+    }
 
     // Barra de vida
     float healthPct = static_cast<float>(health) / maxHealth;

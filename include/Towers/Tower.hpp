@@ -51,8 +51,8 @@ protected:
 
     std::shared_ptr<Pinata> findTarget(std::vector<std::shared_ptr<Pinata>>& enemies);
     std::shared_ptr<Pinata> findMostAdvancedTarget(std::vector<std::shared_ptr<Pinata>>& enemies);
-    void attackArea(std::shared_ptr<Pinata>& target, std::vector<std::shared_ptr<Pinata>>& enemies);
-    virtual void attack(std::shared_ptr<Pinata>& target);
+    bool attackArea(std::shared_ptr<Pinata>& target, std::vector<std::shared_ptr<Pinata>>& enemies);
+    virtual bool attack(std::shared_ptr<Pinata>& target);
     bool missesFromHypnosis() const;
     void renderAttackEffect(sf::RenderWindow& window) const;
     sf::Color getAttackEffectColor() const;

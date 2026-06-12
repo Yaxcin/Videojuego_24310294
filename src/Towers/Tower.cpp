@@ -72,11 +72,13 @@ void Tower::combat(float deltaTime, std::vector<std::shared_ptr<Pinata>>& enemie
     if (target) {
         lastTargetPosition = target->getPosition();
         if (towerType == TowerType::DON_COHETES) {
-            attackArea(target, enemies);
-            areaEffectTimer = 0.25f;
+            if (attackArea(target, enemies)) {
+                areaEffectTimer = 0.25f;
+            }
         } else {
-            attack(target);
-            attackEffectTimer = 0.12f;
+            if (attack(target)) {
+                attackEffectTimer = 0.12f;
+            }
         }
         fireCooldown = 1.f / fireRate;
     }
@@ -136,17 +138,18 @@ std::shared_ptr<Pinata> Tower::findMostAdvancedTarget(std::vector<std::shared_pt
     return mostAdvanced;
 }
 
-void Tower::attack(std::shared_ptr<Pinata>& target) {
-    if (missesFromHypnosis()) return;
+bool Tower::attack(std::shared_ptr<Pinata>& target) {
+    if (missesFromHypnosis()) return false;
 
     target->takeDamage(getEffectiveDamage(towerType, damage, target));
     if (towerType == TowerType::RASPADERO) {
         target->applySlow(0.5f, 2.f);
     }
+    return true;
 }
 
-void Tower::attackArea(std::shared_ptr<Pinata>& target, std::vector<std::shared_ptr<Pinata>>& enemies) {
-    if (missesFromHypnosis()) return;
+bool Tower::attackArea(std::shared_ptr<Pinata>& target, std::vector<std::shared_ptr<Pinata>>& enemies) {
+    if (missesFromHypnosis()) return false;
 
     constexpr int maxTargets = 10;
     int hits = 0;
@@ -159,9 +162,10 @@ void Tower::attackArea(std::shared_ptr<Pinata>& target, std::vector<std::shared_
                 lastTargetPosition = e->getPosition();
             }
             hits++;
-            if (hits >= maxTargets) return;
+            if (hits >= maxTargets) return true;
         }
     }
+    return hits > 0;
 }
 
 void Tower::render(sf::RenderWindow& window) const {

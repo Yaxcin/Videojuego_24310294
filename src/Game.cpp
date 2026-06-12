@@ -282,21 +282,23 @@ void Game::update() {
         if (enemy && enemy->isAlive()) enemy->update(deltaTime);
         if (enemy && enemy->hasReachedEnd()) damagePlayer(1);
     }
+    updateTowerRangeVisuals();
     updateHypnosisAuras();
     for (auto& tower : towers) {
         if (!tower) continue;
 
         float fireRateMultiplier = 1.f;
         if (!tower->isSupportTower()) {
+            float supportRangeScale = getOrganilleroRangeScale();
             for (const auto& support : towers) {
-                if (support && support->isSupportTower() && support->isInRange(tower->getPosition())) {
+                if (support && support->isSupportTower() && support->isInScaledRange(tower->getPosition(), supportRangeScale)) {
                     float baseBuff = (tower->getType() == TowerType::ABUELITA) ? 1.05f : 1.35f;
                     fireRateMultiplier = 1.f + (baseBuff - 1.f) * support->getSupportMultiplierScale();
                     break;
                 }
             }
         }
-        tower->combat(deltaTime, enemies, fireRateMultiplier);
+        tower->combat(deltaTime, enemies, fireRateMultiplier, &towers);
     }
     std::vector<std::shared_ptr<Pinata>> spawnedPinatas;
     enemies.erase(
@@ -364,6 +366,7 @@ void Game::render() {
 }
 
     map.render(window);
+    updateTowerRangeVisuals();
 
     for (const auto& tower : towers) {
         if (tower && tower != selectedPlacedTower) tower->render(window);
@@ -493,8 +496,17 @@ void Game::slowTowersNear(const sf::Vector2f& position, float radius, float mult
     }
 }
 
+void Game::updateTowerRangeVisuals() {
+    float organilleroRangeScale = getOrganilleroRangeScale();
+    for (auto& tower : towers) {
+        if (!tower) continue;
+        tower->setRangeVisualScale(tower->isSupportTower() ? organilleroRangeScale : 1.f);
+    }
+}
+
 void Game::updateHypnosisAuras() {
     constexpr float hypnosisRadius = 190.f;
+    float supportRangeScale = getOrganilleroRangeScale();
 
     for (auto& tower : towers) {
         if (tower) tower->setHypnotized(false);
@@ -505,11 +517,34 @@ void Game::updateHypnosisAuras() {
 
         for (auto& tower : towers) {
             if (!tower || tower->isImmuneToHypnosis()) continue;
+            if (tower->isHypnosisProtected()) continue;
+            bool protectedByOrganillero = false;
+            for (const auto& support : towers) {
+                if (support && support->isSupportTower() && support->isInScaledRange(tower->getPosition(), supportRangeScale)) {
+                    protectedByOrganillero = true;
+                    break;
+                }
+            }
+            if (protectedByOrganillero) continue;
+
             if (distanceBetween(tower->getPosition(), enemy->getPosition()) <= hypnosisRadius) {
                 tower->setHypnotized(true);
             }
         }
     }
+}
+
+bool Game::hasActiveHypnotizer() const {
+    for (const auto& enemy : enemies) {
+        if (enemy && enemy->isAlive() && enemy->getType() == PinataType::HIPNOTIZADORA) {
+            return true;
+        }
+    }
+    return false;
+}
+
+float Game::getOrganilleroRangeScale() const {
+    return hasActiveHypnotizer() ? 0.7f : 1.f;
 }
 
 void Game::renderPanel() {

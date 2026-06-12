@@ -83,7 +83,10 @@ private:
     std::shared_ptr<Tower> findTowerAt(float x, float y) const;
     void clearTowerSelection();
     void slowTowersNear(const sf::Vector2f& position, float radius, float multiplier, float duration);
+    void updateTowerRangeVisuals();
     void updateHypnosisAuras();
+    bool hasActiveHypnotizer() const;
+    float getOrganilleroRangeScale() const;
     void renderPanel();
     void renderTowerPreview();
     void startWave();

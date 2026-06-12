@@ -26,8 +26,10 @@ namespace {
 Tower::Tower(float x, float y, TowerType type, float range, int damage, float fireRate, int cost)
     : Entity(x, y), towerType(type), range(range), damage(damage),
       fireRate(fireRate), fireCooldown(0.f), cost(cost), selected(false),
-      lastTargetPosition(x, y), attackEffectTimer(0.f), areaEffectTimer(0.f),
-      attackSlowTimer(0.f), attackSlowMultiplier(1.f), hypnotized(false) {
+      rangeVisualScale(1.f), lastTargetPosition(x, y), attackEffectTimer(0.f), areaEffectTimer(0.f),
+      supportActionCooldown(0.f),
+      attackSlowTimer(0.f), attackSlowMultiplier(1.f), hypnosisProtectionTimer(0.f),
+      hypnotized(false) {
 
     rangeCircle.setRadius(range);
     rangeCircle.setOrigin({range, range});
@@ -48,14 +50,23 @@ void Tower::initSprite() {
     }
 }
 
-void Tower::combat(float deltaTime, std::vector<std::shared_ptr<Pinata>>& enemies, float fireRateMultiplier) {
+void Tower::combat(
+    float deltaTime,
+    std::vector<std::shared_ptr<Pinata>>& enemies,
+    float fireRateMultiplier,
+    const std::vector<std::shared_ptr<Tower>>* allTowers
+) {
     if (attackEffectTimer > 0.f) attackEffectTimer -= deltaTime;
     if (areaEffectTimer > 0.f) areaEffectTimer -= deltaTime;
+    if (supportActionCooldown > 0.f) supportActionCooldown -= deltaTime;
     if (attackSlowTimer > 0.f) {
         attackSlowTimer -= deltaTime;
         if (attackSlowTimer <= 0.f) {
             attackSlowMultiplier = 1.f;
         }
+    }
+    if (hypnosisProtectionTimer > 0.f) {
+        hypnosisProtectionTimer -= deltaTime;
     }
     if (isSupportTower()) return;
 
@@ -63,6 +74,16 @@ void Tower::combat(float deltaTime, std::vector<std::shared_ptr<Pinata>>& enemie
     if (fireCooldown > 0.f) {
         fireCooldown -= deltaTime * effectiveMultiplier;
         return;
+    }
+
+    if (towerType == TowerType::ABUELITA && allTowers && supportActionCooldown <= 0.f) {
+        auto hypnotizedTower = findNearestHypnotizedTower(*allTowers);
+        if (clearHypnosisFromTower(hypnotizedTower)) {
+            lastTargetPosition = hypnotizedTower->getPosition();
+            attackEffectTimer = 0.18f;
+            supportActionCooldown = 2.f;
+            return;
+        }
     }
 
     auto target = (towerType == TowerType::ABUELITA)
@@ -85,9 +106,13 @@ void Tower::combat(float deltaTime, std::vector<std::shared_ptr<Pinata>>& enemie
 }
 
 bool Tower::isInRange(const sf::Vector2f& targetPosition) const {
+    return isInScaledRange(targetPosition, 1.f);
+}
+
+bool Tower::isInScaledRange(const sf::Vector2f& targetPosition, float rangeScale) const {
     sf::Vector2f diff = targetPosition - position;
     float dist = std::sqrt(diff.x * diff.x + diff.y * diff.y);
-    return dist <= range;
+    return dist <= range * rangeScale;
 }
 
 void Tower::moveTo(float x, float y) {
@@ -104,7 +129,12 @@ void Tower::applyAttackSlow(float multiplier, float duration) {
 }
 
 void Tower::setHypnotized(bool value) {
-    hypnotized = value && !isImmuneToHypnosis();
+    hypnotized = value && !isImmuneToHypnosis() && !isHypnosisProtected();
+}
+
+void Tower::applyHypnosisProtection(float duration) {
+    hypnotized = false;
+    hypnosisProtectionTimer = std::max(hypnosisProtectionTimer, duration);
 }
 
 std::shared_ptr<Pinata> Tower::findTarget(std::vector<std::shared_ptr<Pinata>>& enemies) {
@@ -136,6 +166,31 @@ std::shared_ptr<Pinata> Tower::findMostAdvancedTarget(std::vector<std::shared_pt
         }
     }
     return mostAdvanced;
+}
+
+std::shared_ptr<Tower> Tower::findNearestHypnotizedTower(const std::vector<std::shared_ptr<Tower>>& allTowers) {
+    std::shared_ptr<Tower> nearest = nullptr;
+    float minDist = range;
+
+    for (const auto& tower : allTowers) {
+        if (!tower || tower.get() == this || !tower->isHypnotized()) continue;
+
+        sf::Vector2f diff = tower->getPosition() - position;
+        float dist = std::sqrt(diff.x * diff.x + diff.y * diff.y);
+        if (dist <= minDist) {
+            minDist = dist;
+            nearest = tower;
+        }
+    }
+
+    return nearest;
+}
+
+bool Tower::clearHypnosisFromTower(const std::shared_ptr<Tower>& target) {
+    if (!target || !target->isHypnotized()) return false;
+
+    target->applyHypnosisProtection(5.f);
+    return true;
 }
 
 bool Tower::attack(std::shared_ptr<Pinata>& target) {
@@ -170,7 +225,14 @@ bool Tower::attackArea(std::shared_ptr<Pinata>& target, std::vector<std::shared_
 
 void Tower::render(sf::RenderWindow& window) const {
     if (selected || isSupportTower()) {
-        window.draw(rangeCircle);
+        float visualRange = range * rangeVisualScale;
+        sf::CircleShape visualRangeCircle(visualRange);
+        visualRangeCircle.setOrigin({visualRange, visualRange});
+        visualRangeCircle.setPosition(position);
+        visualRangeCircle.setFillColor(rangeCircle.getFillColor());
+        visualRangeCircle.setOutlineColor(rangeCircle.getOutlineColor());
+        visualRangeCircle.setOutlineThickness(rangeCircle.getOutlineThickness());
+        window.draw(visualRangeCircle);
     }
     if (sprite) {
         window.draw(*sprite);
@@ -210,8 +272,9 @@ sf::Color Tower::getAttackEffectColor() const {
 
 void Tower::renderAttackEffect(sf::RenderWindow& window) const {
     if (isSupportTower()) {
-        sf::CircleShape aura(range);
-        aura.setOrigin({range, range});
+        float visualRange = range * rangeVisualScale;
+        sf::CircleShape aura(visualRange);
+        aura.setOrigin({visualRange, visualRange});
         aura.setPosition(position);
         aura.setFillColor(sf::Color(255, 230, 90, 18));
         aura.setOutlineColor(sf::Color(255, 230, 90, 80));

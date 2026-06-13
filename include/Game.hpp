@@ -22,6 +22,24 @@
 // Forward declarations
 class Entity;
 
+struct Projectile {
+    sf::Vector2f position;
+    std::weak_ptr<Pinata> target;
+    int damage;
+    float speed;
+    float rotation;
+    ProjectileType type;
+    float splashRadius;
+    bool alive;
+};
+
+struct ExplosionEffect {
+    sf::Vector2f position;
+    float radius;
+    float timer;
+    float duration;
+};
+
 class Game {
 public:
     Game(unsigned int width = 1280, unsigned int height = 720);
@@ -66,6 +84,8 @@ private:
     std::vector<std::shared_ptr<Entity>> entities;
     std::vector<std::shared_ptr<Pinata>> enemies;
     std::vector<std::shared_ptr<Tower>> towers;
+    std::vector<Projectile> projectiles;
+    std::vector<ExplosionEffect> explosionEffects;
     Map map;
 
     TowerType selectedTowerType;
@@ -77,6 +97,8 @@ private:
     void handleEvents();
     void update();
     void render();
+    void updateProjectiles();
+    void renderProjectiles();
     void updateDebugInfo();
     void spawnDebugPinata(PinataType type);
     int countTowersOfType(TowerType type) const;
@@ -101,6 +123,9 @@ private:
     sf::Font hudFont;
     std::string debugInfo;  
     sf::Texture menuTexture;
+    sf::Texture chanclaProjectileTexture;
+    sf::Texture rocketProjectileTexture;
+    sf::Texture iceProjectileTexture;
     sf::Sprite* menuSprite = nullptr;
 };
 

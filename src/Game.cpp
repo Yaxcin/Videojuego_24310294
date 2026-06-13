@@ -163,6 +163,15 @@ Game::Game(unsigned int w, unsigned int h)
     float scaleY = static_cast<float>(height) / menuTexture.getSize().y;
     menuSprite->setScale({scaleX, scaleY});
     }
+    if (!chanclaProjectileTexture.loadFromFile("assets/textures/projectiles/CHANCLA.png")) {
+        std::cerr << "[TEXTURE] No se pudo cargar CHANCLA.png" << std::endl;
+    }
+    if (!rocketProjectileTexture.loadFromFile("assets/textures/projectiles/COHETE.png")) {
+        std::cerr << "[TEXTURE] No se pudo cargar COHETE.png" << std::endl;
+    }
+    if (!iceProjectileTexture.loadFromFile("assets/textures/projectiles/HIELO_RASPADO.png")) {
+        std::cerr << "[TEXTURE] No se pudo cargar HIELO_RASPADO.png" << std::endl;
+    }
     std::cout << "[GAME] Initialized: "     << width << "x" << height << std::endl;
 }
 
@@ -397,7 +406,24 @@ void Game::update() {
             }
         }
         tower->combat(deltaTime, enemies, fireRateMultiplier, &towers);
+        if (auto projectile = tower->consumeProjectileRequest()) {
+            float projectileSpeed = 520.f;
+            if (projectile->type == ProjectileType::Chancla) projectileSpeed = 760.f;
+            if (projectile->type == ProjectileType::Rocket) projectileSpeed = 430.f;
+            if (projectile->type == ProjectileType::Ice) projectileSpeed = 500.f;
+            projectiles.push_back(Projectile{
+                projectile->startPosition,
+                projectile->target,
+                projectile->damage,
+                projectileSpeed,
+                0.f,
+                projectile->type,
+                projectile->splashRadius,
+                true
+            });
+        }
     }
+    updateProjectiles();
     std::vector<std::shared_ptr<Pinata>> spawnedPinatas;
     enemies.erase(
         std::remove_if(enemies.begin(), enemies.end(),
@@ -459,6 +485,13 @@ void Game::update() {
             break;
     }
 
+    bool playSupportLoops = currentState == GameState::ROUND_ACTIVE;
+    for (auto& tower : towers) {
+        if (!tower) continue;
+        tower->setLoopAnimationActive(playSupportLoops);
+        tower->updateLoopAnimation(deltaTime);
+    }
+
     for (auto& entity : entities) {
         if (entity && entity->isAlive()) entity->update(deltaTime);
     }
@@ -485,12 +518,160 @@ void Game::render() {
         if (enemy && enemy->isAlive()) enemy->render(window);
     }
 
+    renderProjectiles();
+
     renderTowerPreview();
     renderPanel();
     renderHUD();
     renderRoundPreview();
 
     window.display();
+}
+
+void Game::updateProjectiles() {
+    for (auto& explosion : explosionEffects) {
+        explosion.timer -= deltaTime;
+    }
+    explosionEffects.erase(
+        std::remove_if(explosionEffects.begin(), explosionEffects.end(),
+            [](const ExplosionEffect& explosion) {
+                return explosion.timer <= 0.f;
+            }),
+        explosionEffects.end()
+    );
+
+    for (auto& projectile : projectiles) {
+        if (!projectile.alive) continue;
+
+        auto target = projectile.target.lock();
+        if (!target || !target->isAlive()) {
+            projectile.alive = false;
+            continue;
+        }
+
+        sf::Vector2f targetPosition = target->getPosition();
+        sf::Vector2f direction = targetPosition - projectile.position;
+        float distance = std::sqrt(direction.x * direction.x + direction.y * direction.y);
+        float travel = projectile.speed * deltaTime;
+
+        if (distance <= 12.f || distance <= travel) {
+            if (projectile.type == ProjectileType::Rocket) {
+                sf::Vector2f impactPosition = target->getPosition();
+                for (auto& enemy : enemies) {
+                    if (!enemy || !enemy->isAlive()) continue;
+                    if (distanceBetween(enemy->getPosition(), impactPosition) <= projectile.splashRadius) {
+                        enemy->takeDamage(projectile.damage);
+                    }
+                }
+                explosionEffects.push_back(ExplosionEffect{
+                    impactPosition,
+                    projectile.splashRadius,
+                    0.28f,
+                    0.28f
+                });
+            } else {
+                target->takeDamage(projectile.damage);
+                if (projectile.type == ProjectileType::Ice) {
+                    target->applySlow(0.5f, 2.f);
+                }
+            }
+            projectile.alive = false;
+            continue;
+        }
+
+        direction /= distance;
+        projectile.rotation = sf::degrees(std::atan2(direction.y, direction.x)).asDegrees();
+        projectile.position += direction * travel;
+    }
+
+    projectiles.erase(
+        std::remove_if(projectiles.begin(), projectiles.end(),
+            [](const Projectile& projectile) {
+                return !projectile.alive;
+            }),
+        projectiles.end()
+    );
+}
+
+void Game::renderProjectiles() {
+    for (const auto& explosion : explosionEffects) {
+        float progress = explosion.timer / explosion.duration;
+        float radius = explosion.radius * (1.1f - progress * 0.15f);
+
+        sf::CircleShape blast(radius);
+        blast.setOrigin({radius, radius});
+        blast.setPosition(explosion.position);
+        blast.setFillColor(sf::Color(255, 115, 35, static_cast<std::uint8_t>(95 * progress)));
+        blast.setOutlineColor(sf::Color(255, 225, 90, static_cast<std::uint8_t>(210 * progress)));
+        blast.setOutlineThickness(4.f);
+        window.draw(blast);
+
+        sf::CircleShape core(radius * 0.35f);
+        core.setOrigin({radius * 0.35f, radius * 0.35f});
+        core.setPosition(explosion.position);
+        core.setFillColor(sf::Color(255, 240, 140, static_cast<std::uint8_t>(180 * progress)));
+        window.draw(core);
+    }
+
+    for (const auto& projectile : projectiles) {
+        if (!projectile.alive) continue;
+
+        if (projectile.type == ProjectileType::Chancla && chanclaProjectileTexture.getSize().x > 0) {
+            sf::Sprite chancla(chanclaProjectileTexture);
+            auto size = chanclaProjectileTexture.getSize();
+            chancla.setOrigin({static_cast<float>(size.x) / 2.f, static_cast<float>(size.y) / 2.f});
+            chancla.setPosition(projectile.position);
+            chancla.setRotation(sf::degrees(projectile.rotation));
+            window.draw(chancla);
+            continue;
+        }
+
+        if (projectile.type == ProjectileType::Rocket && rocketProjectileTexture.getSize().x > 0) {
+            sf::CircleShape smoke(7.f);
+            smoke.setOrigin({7.f, 7.f});
+            smoke.setPosition(projectile.position - sf::Vector2f(std::cos(projectile.rotation * 3.14159265f / 180.f), std::sin(projectile.rotation * 3.14159265f / 180.f)) * 18.f);
+            smoke.setFillColor(sf::Color(255, 165, 70, 90));
+            window.draw(smoke);
+
+            sf::Sprite rocket(rocketProjectileTexture);
+            auto size = rocketProjectileTexture.getSize();
+            rocket.setOrigin({static_cast<float>(size.x) / 2.f, static_cast<float>(size.y) / 2.f});
+            rocket.setPosition(projectile.position);
+            rocket.setRotation(sf::degrees(projectile.rotation + 35.f));
+            window.draw(rocket);
+            continue;
+        }
+
+        if (projectile.type == ProjectileType::Ice && iceProjectileTexture.getSize().x > 0) {
+            sf::Sprite ice(iceProjectileTexture);
+            auto size = iceProjectileTexture.getSize();
+            ice.setOrigin({static_cast<float>(size.x) / 2.f, static_cast<float>(size.y) / 2.f});
+            ice.setPosition(projectile.position);
+            ice.setRotation(sf::degrees(projectile.rotation));
+            window.draw(ice);
+            continue;
+        }
+
+        sf::CircleShape trail(5.f);
+        trail.setOrigin({5.f, 5.f});
+        trail.setPosition(projectile.position + sf::Vector2f(-7.f, 2.f));
+        trail.setFillColor(sf::Color(175, 255, 95, 90));
+        window.draw(trail);
+
+        sf::CircleShape lime(6.f, 16);
+        lime.setOrigin({6.f, 6.f});
+        lime.setPosition(projectile.position);
+        lime.setFillColor(sf::Color(190, 255, 80));
+        lime.setOutlineColor(sf::Color(70, 135, 35));
+        lime.setOutlineThickness(2.f);
+        window.draw(lime);
+
+        sf::CircleShape pulp(2.f, 10);
+        pulp.setOrigin({2.f, 2.f});
+        pulp.setPosition(projectile.position + sf::Vector2f(1.f, -1.f));
+        pulp.setFillColor(sf::Color(245, 255, 180, 210));
+        window.draw(pulp);
+    }
 }
 
 void Game::spawnDebugPinata(PinataType type) {
@@ -781,7 +962,7 @@ void Game::renderTowerPreview() {
             case TowerType::VIEJO_MACHETE: previewRange = 90.f; break;
             case TowerType::TAQUERO: previewRange = 150.f; break;
             case TowerType::ABUELITA: previewRange = 2000.f; break;
-            case TowerType::DON_COHETES: previewRange = 170.f; break;
+            case TowerType::DON_COHETES: previewRange = 204.f; break;
             case TowerType::ORGANILLERO: previewRange = 170.f; break;
             case TowerType::RASPADERO: previewRange = 160.f; break;
             default: previewRange = 120.f; break;

@@ -7,6 +7,22 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 #include <memory>
+#include <optional>
+
+enum class ProjectileType {
+    Lime,
+    Chancla,
+    Rocket,
+    Ice
+};
+
+struct ProjectileRequest {
+    sf::Vector2f startPosition;
+    std::shared_ptr<Pinata> target;
+    int damage;
+    ProjectileType type;
+    float splashRadius;
+};
 
 class Tower : public Entity {
 public:
@@ -38,6 +54,9 @@ public:
     void applyAttackSlow(float multiplier, float duration);
     void setHypnotized(bool value);
     void applyHypnosisProtection(float duration);
+    std::optional<ProjectileRequest> consumeProjectileRequest();
+    void setLoopAnimationActive(bool active);
+    void updateLoopAnimation(float deltaTime);
 
 protected:
     TowerType towerType;
@@ -50,6 +69,20 @@ protected:
 
     sf::Texture texture;
     std::unique_ptr<sf::Sprite> sprite;
+    sf::Texture attackTexture;
+    bool hasAttackAnimation;
+    bool attackAnimationActive;
+    float attackAnimationTimer;
+    float attackAnimationDuration;
+    int attackAnimationFrame;
+    int attackAnimationFrameCount;
+    sf::Texture loopTexture;
+    bool hasLoopAnimation;
+    bool loopAnimationActive;
+    float loopAnimationTimer;
+    float loopAnimationDuration;
+    int loopAnimationFrame;
+    int loopAnimationFrameCount;
     sf::CircleShape rangeCircle;
     float rangeVisualScale;
     sf::Vector2f lastTargetPosition;
@@ -60,6 +93,7 @@ protected:
     float attackSlowMultiplier;
     float hypnosisProtectionTimer;
     bool hypnotized;
+    std::optional<ProjectileRequest> pendingProjectileRequest;
 
     std::shared_ptr<Pinata> findTarget(std::vector<std::shared_ptr<Pinata>>& enemies);
     std::shared_ptr<Pinata> findMostAdvancedTarget(std::vector<std::shared_ptr<Pinata>>& enemies);
@@ -71,6 +105,13 @@ protected:
     void renderAttackEffect(sf::RenderWindow& window) const;
     sf::Color getAttackEffectColor() const;
     void initSprite();
+    void initAttackAnimation();
+    void initLoopAnimation();
+    void startAttackAnimation();
+    void updateAttackAnimation(float deltaTime);
+    void setAttackAnimationFrame(int frame);
+    void setLoopAnimationFrame(int frame);
+    void resetIdleSprite();
 };
 
 #endif

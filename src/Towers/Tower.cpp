@@ -30,6 +30,10 @@ namespace {
 Tower::Tower(float x, float y, TowerType type, float range, int damage, float fireRate, int cost)
     : Entity(x, y), towerType(type), range(range), damage(damage),
       fireRate(fireRate), fireCooldown(0.f), cost(cost), selected(false),
+      hasAttackAnimation(false), attackAnimationActive(false), attackAnimationTimer(0.f),
+      attackAnimationDuration(0.48f), attackAnimationFrame(0), attackAnimationFrameCount(0),
+      hasLoopAnimation(false), loopAnimationActive(false), loopAnimationTimer(0.f),
+      loopAnimationDuration(0.8f), loopAnimationFrame(0), loopAnimationFrameCount(0),
       rangeVisualScale(1.f), lastTargetPosition(x, y), attackEffectTimer(0.f), areaEffectTimer(0.f),
       supportActionCooldown(0.f),
       attackSlowTimer(0.f), attackSlowMultiplier(1.f), hypnosisProtectionTimer(0.f),
@@ -43,6 +47,8 @@ Tower::Tower(float x, float y, TowerType type, float range, int damage, float fi
     rangeCircle.setOutlineThickness(1.f);
 
     initSprite();
+    initAttackAnimation();
+    initLoopAnimation();
 }
 
 void Tower::initSprite() {
@@ -54,12 +60,135 @@ void Tower::initSprite() {
     }
 }
 
+void Tower::initAttackAnimation() {
+    std::string path;
+    switch (towerType) {
+        case TowerType::NINO_PALO:
+            path = "assets/textures/animations/NINO_PALO_ATTACK.png";
+            break;
+        case TowerType::VIEJO_MACHETE:
+            path = "assets/textures/animations/VIEJO_MACHETE_ATTACK.png";
+            break;
+        case TowerType::TAQUERO:
+            path = "assets/textures/animations/TAQUERO_ATTACK.png";
+            break;
+        case TowerType::ABUELITA:
+            path = "assets/textures/animations/ABUELITA_ATTACK.png";
+            break;
+        case TowerType::DON_COHETES:
+            path = "assets/textures/animations/DON_COHETES_ATTACK.png";
+            break;
+        case TowerType::RASPADERO:
+            path = "assets/textures/animations/RASPADERO_ATTACK.png";
+            break;
+        default:
+            return;
+    }
+
+    if (!attackTexture.loadFromFile(path)) return;
+
+    hasAttackAnimation = true;
+    attackAnimationFrameCount = 4;
+}
+
+void Tower::initLoopAnimation() {
+    if (towerType != TowerType::ORGANILLERO) return;
+    if (!loopTexture.loadFromFile("assets/textures/animations/ORGANILLERO_PLAYING.png")) return;
+
+    hasLoopAnimation = true;
+    loopAnimationFrameCount = 4;
+}
+
+void Tower::setLoopAnimationActive(bool active) {
+    if (!hasLoopAnimation || !sprite) return;
+    if (loopAnimationActive == active) return;
+
+    loopAnimationActive = active;
+    loopAnimationTimer = 0.f;
+    loopAnimationFrame = -1;
+
+    if (loopAnimationActive) {
+        setLoopAnimationFrame(0);
+    } else {
+        resetIdleSprite();
+    }
+}
+
+void Tower::updateLoopAnimation(float deltaTime) {
+    if (!loopAnimationActive || !hasLoopAnimation || !sprite) return;
+
+    loopAnimationTimer += deltaTime;
+    float frameDuration = loopAnimationDuration / static_cast<float>(loopAnimationFrameCount);
+    int frame = static_cast<int>(loopAnimationTimer / frameDuration) % loopAnimationFrameCount;
+    setLoopAnimationFrame(frame);
+}
+
+void Tower::startAttackAnimation() {
+    if (!hasAttackAnimation || !sprite) return;
+
+    attackAnimationActive = true;
+    attackAnimationTimer = attackAnimationDuration;
+    attackAnimationFrame = -1;
+    setAttackAnimationFrame(0);
+}
+
+void Tower::updateAttackAnimation(float deltaTime) {
+    if (!attackAnimationActive || !sprite) return;
+
+    attackAnimationTimer -= deltaTime;
+    if (attackAnimationTimer <= 0.f) {
+        attackAnimationActive = false;
+        resetIdleSprite();
+        return;
+    }
+
+    float progress = 1.f - (attackAnimationTimer / attackAnimationDuration);
+    int frame = std::clamp(
+        static_cast<int>(progress * static_cast<float>(attackAnimationFrameCount)),
+        0,
+        attackAnimationFrameCount - 1
+    );
+    setAttackAnimationFrame(frame);
+}
+
+void Tower::setAttackAnimationFrame(int frame) {
+    if (!hasAttackAnimation || !sprite || frame == attackAnimationFrame) return;
+
+    attackAnimationFrame = frame;
+    sprite->setTexture(attackTexture, true);
+    sprite->setTextureRect(sf::IntRect({frame * 64, 0}, {64, 64}));
+    sprite->setOrigin(sf::Vector2f(32.f, 32.f));
+    sprite->setPosition(position);
+}
+
+void Tower::setLoopAnimationFrame(int frame) {
+    if (!hasLoopAnimation || !sprite || frame == loopAnimationFrame) return;
+
+    loopAnimationFrame = frame;
+    sprite->setTexture(loopTexture, true);
+    sprite->setTextureRect(sf::IntRect({frame * 64, 0}, {64, 64}));
+    sprite->setOrigin(sf::Vector2f(32.f, 32.f));
+    sprite->setPosition(position);
+}
+
+void Tower::resetIdleSprite() {
+    if (!sprite) return;
+
+    sprite->setTexture(texture, true);
+    sprite->setTextureRect(sf::IntRect({0, 0}, {64, 64}));
+    sprite->setOrigin(sf::Vector2f(32.f, 32.f));
+    sprite->setPosition(position);
+    attackAnimationFrame = 0;
+    loopAnimationFrame = 0;
+}
+
 void Tower::combat(
     float deltaTime,
     std::vector<std::shared_ptr<Pinata>>& enemies,
     float fireRateMultiplier,
     const std::vector<std::shared_ptr<Tower>>* allTowers
 ) {
+    updateAttackAnimation(deltaTime);
     if (attackEffectTimer > 0.f) attackEffectTimer -= deltaTime;
     if (areaEffectTimer > 0.f) areaEffectTimer -= deltaTime;
     if (supportActionCooldown > 0.f) supportActionCooldown -= deltaTime;
@@ -99,10 +228,12 @@ void Tower::combat(
         if (towerType == TowerType::DON_COHETES) {
             if (attackArea(target, enemies)) {
                 areaEffectTimer = 0.25f;
+                startAttackAnimation();
             }
         } else {
             if (attack(target)) {
                 attackEffectTimer = 0.12f;
+                startAttackAnimation();
             }
         }
         fireCooldown = 1.f / fireRate;
@@ -197,34 +328,58 @@ bool Tower::clearHypnosisFromTower(const std::shared_ptr<Tower>& target) {
     return true;
 }
 
+std::optional<ProjectileRequest> Tower::consumeProjectileRequest() {
+    auto request = pendingProjectileRequest;
+    pendingProjectileRequest.reset();
+    return request;
+}
+
 bool Tower::attack(std::shared_ptr<Pinata>& target) {
     if (missesFromHypnosis()) return false;
 
-    target->takeDamage(getEffectiveDamage(towerType, damage, target));
-    if (towerType == TowerType::RASPADERO) {
-        target->applySlow(0.5f, 2.f);
+    int effectiveDamage = getEffectiveDamage(towerType, damage, target);
+    if (towerType == TowerType::TAQUERO || towerType == TowerType::ABUELITA || towerType == TowerType::RASPADERO) {
+        sf::Vector2f direction = target->getPosition() - position;
+        float distance = std::sqrt(direction.x * direction.x + direction.y * direction.y);
+        if (distance > 0.f) {
+            direction /= distance;
+        }
+        ProjectileType projectileType = ProjectileType::Lime;
+        if (towerType == TowerType::ABUELITA) projectileType = ProjectileType::Chancla;
+        if (towerType == TowerType::RASPADERO) projectileType = ProjectileType::Ice;
+
+        pendingProjectileRequest = ProjectileRequest{
+            position + direction * 20.f + sf::Vector2f(0.f, -8.f),
+            target,
+            effectiveDamage,
+            projectileType,
+            0.f
+        };
+        return true;
     }
+
+    target->takeDamage(effectiveDamage);
     return true;
 }
 
 bool Tower::attackArea(std::shared_ptr<Pinata>& target, std::vector<std::shared_ptr<Pinata>>& enemies) {
     if (missesFromHypnosis()) return false;
+    (void)enemies;
 
-    constexpr int maxTargets = 10;
-    int hits = 0;
-
-    for (auto& e : enemies) {
-        if (!e || !e->isAlive()) continue;
-        if (isInRange(e->getPosition())) {
-            e->takeDamage(getEffectiveDamage(towerType, damage, e));
-            if (e == target) {
-                lastTargetPosition = e->getPosition();
-            }
-            hits++;
-            if (hits >= maxTargets) return true;
-        }
+    sf::Vector2f direction = target->getPosition() - position;
+    float distance = std::sqrt(direction.x * direction.x + direction.y * direction.y);
+    if (distance > 0.f) {
+        direction /= distance;
     }
-    return hits > 0;
+
+    pendingProjectileRequest = ProjectileRequest{
+        position + direction * 22.f + sf::Vector2f(0.f, -10.f),
+        target,
+        damage,
+        ProjectileType::Rocket,
+        180.f
+    };
+    return true;
 }
 
 void Tower::render(sf::RenderWindow& window) const {
@@ -275,6 +430,10 @@ sf::Color Tower::getAttackEffectColor() const {
 }
 
 void Tower::renderAttackEffect(sf::RenderWindow& window) const {
+    if (hasAttackAnimation) {
+        return;
+    }
+
     if (isSupportTower()) {
         float visualRange = range * rangeVisualScale;
         sf::CircleShape aura(visualRange);

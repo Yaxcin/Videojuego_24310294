@@ -40,6 +40,14 @@ struct ExplosionEffect {
     float duration;
 };
 
+struct ImpactEffect {
+    sf::Vector2f position;
+    ProjectileType type;
+    float timer;
+    float duration;
+    float rotation;
+};
+
 class Game {
 public:
     Game(unsigned int width = 1280, unsigned int height = 720);
@@ -86,6 +94,7 @@ private:
     std::vector<std::shared_ptr<Tower>> towers;
     std::vector<Projectile> projectiles;
     std::vector<ExplosionEffect> explosionEffects;
+    std::vector<ImpactEffect> impactEffects;
     Map map;
 
     TowerType selectedTowerType;

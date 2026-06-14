@@ -25,17 +25,53 @@ namespace {
         Exit
     };
 
-    MenuAction getMenuActionAt(float x, float y) {
-        const sf::FloatRect playButton({980.f, 190.f}, {275.f, 85.f});
-        const sf::FloatRect charactersButton({980.f, 292.f}, {275.f, 82.f});
-        const sf::FloatRect optionsButton({975.f, 400.f}, {285.f, 84.f});
-        const sf::FloatRect exitButton({1005.f, 508.f}, {235.f, 85.f});
+    struct MenuButton {
+        MenuAction action;
+        sf::FloatRect bounds;
+        sf::FloatRect hoverBounds;
+    };
 
-        if (playButton.contains({x, y})) return MenuAction::Play;
-        if (charactersButton.contains({x, y})) return MenuAction::Characters;
-        if (optionsButton.contains({x, y})) return MenuAction::Options;
-        if (exitButton.contains({x, y})) return MenuAction::Exit;
+    const std::vector<MenuButton>& getMenuButtons() {
+        static const std::vector<MenuButton> buttons = {
+            {MenuAction::Play, {{980.f, 190.f}, {275.f, 85.f}}, {{1000.f, 205.f}, {252.f, 58.f}}},
+            {MenuAction::Characters, {{980.f, 292.f}, {275.f, 82.f}}, {{1002.f, 306.f}, {250.f, 58.f}}},
+            {MenuAction::Options, {{975.f, 400.f}, {285.f, 84.f}}, {{1000.f, 416.f}, {252.f, 58.f}}},
+            {MenuAction::Exit, {{1005.f, 508.f}, {235.f, 85.f}}, {{1023.f, 528.f}, {220.f, 56.f}}}
+        };
+        return buttons;
+    }
+
+    MenuAction getMenuActionAt(float x, float y) {
+        for (const auto& button : getMenuButtons()) {
+            if (button.bounds.contains({x, y})) return button.action;
+        }
         return MenuAction::None;
+    }
+
+    const sf::FloatRect* getMenuActionBounds(MenuAction action) {
+        for (const auto& button : getMenuButtons()) {
+            if (button.action == action) return &button.hoverBounds;
+        }
+        return nullptr;
+    }
+
+    sf::ConvexShape makeMenuHoverShape(const sf::FloatRect& bounds) {
+        const float bevel = std::min(bounds.size.y * 0.34f, 22.f);
+        const float x = bounds.position.x;
+        const float y = bounds.position.y;
+        const float w = bounds.size.x;
+        const float h = bounds.size.y;
+
+        sf::ConvexShape shape(8);
+        shape.setPoint(0, {x + bevel, y});
+        shape.setPoint(1, {x + w - bevel, y});
+        shape.setPoint(2, {x + w, y + bevel});
+        shape.setPoint(3, {x + w, y + h - bevel});
+        shape.setPoint(4, {x + w - bevel, y + h});
+        shape.setPoint(5, {x + bevel, y + h});
+        shape.setPoint(6, {x, y + h - bevel});
+        shape.setPoint(7, {x, y + bevel});
+        return shape;
     }
 
     int getTowerCost(TowerType type) {
@@ -502,10 +538,36 @@ void Game::update() {
 void Game::render() {
     window.clear(sf::Color::Black);
     if (currentState == GameState::MENU && menuSprite) {
-    window.draw(*menuSprite);
-    window.display();
-    return;
-}
+        window.draw(*menuSprite);
+
+        sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
+        sf::Vector2f mousePos = window.mapPixelToCoords(mousePixel);
+        sf::Vector2u menuSize = menuTexture.getSize();
+        float menuX = mousePos.x * static_cast<float>(menuSize.x) / static_cast<float>(width);
+        float menuY = mousePos.y * static_cast<float>(menuSize.y) / static_cast<float>(height);
+
+        if (const sf::FloatRect* hoverBounds = getMenuActionBounds(getMenuActionAt(menuX, menuY))) {
+            float scaleX = static_cast<float>(width) / static_cast<float>(menuSize.x);
+            float scaleY = static_cast<float>(height) / static_cast<float>(menuSize.y);
+
+            sf::FloatRect scaledBounds({
+                hoverBounds->position.x * scaleX,
+                hoverBounds->position.y * scaleY
+            }, {
+                hoverBounds->size.x * scaleX,
+                hoverBounds->size.y * scaleY
+            });
+
+            sf::ConvexShape hover = makeMenuHoverShape(scaledBounds);
+            hover.setFillColor(sf::Color(255, 230, 80, 45));
+            hover.setOutlineColor(sf::Color(255, 245, 120, 220));
+            hover.setOutlineThickness(3.f);
+            window.draw(hover);
+        }
+
+        window.display();
+        return;
+    }
 
     map.render(window);
     updateTowerRangeVisuals();
@@ -538,6 +600,17 @@ void Game::updateProjectiles() {
                 return explosion.timer <= 0.f;
             }),
         explosionEffects.end()
+    );
+
+    for (auto& impact : impactEffects) {
+        impact.timer -= deltaTime;
+    }
+    impactEffects.erase(
+        std::remove_if(impactEffects.begin(), impactEffects.end(),
+            [](const ImpactEffect& impact) {
+                return impact.timer <= 0.f;
+            }),
+        impactEffects.end()
     );
 
     for (auto& projectile : projectiles) {
@@ -574,6 +647,13 @@ void Game::updateProjectiles() {
                 if (projectile.type == ProjectileType::Ice) {
                     target->applySlow(0.5f, 2.f);
                 }
+                impactEffects.push_back(ImpactEffect{
+                    target->getPosition(),
+                    projectile.type,
+                    0.22f,
+                    0.22f,
+                    projectile.rotation
+                });
             }
             projectile.alive = false;
             continue;
@@ -611,6 +691,70 @@ void Game::renderProjectiles() {
         core.setPosition(explosion.position);
         core.setFillColor(sf::Color(255, 240, 140, static_cast<std::uint8_t>(180 * progress)));
         window.draw(core);
+    }
+
+    for (const auto& impact : impactEffects) {
+        float progress = impact.timer / impact.duration;
+        float age = 1.f - progress;
+        float radians = impact.rotation * 3.14159265f / 180.f;
+        sf::Vector2f forward(std::cos(radians), std::sin(radians));
+        sf::Vector2f right(-forward.y, forward.x);
+
+        if (impact.type == ProjectileType::Chancla) {
+            sf::CircleShape ring(12.f + age * 12.f, 18);
+            ring.setOrigin({12.f + age * 12.f, 12.f + age * 12.f});
+            ring.setPosition(impact.position);
+            ring.setFillColor(sf::Color(255, 255, 255, 0));
+            ring.setOutlineColor(sf::Color(255, 245, 185, static_cast<std::uint8_t>(210 * progress)));
+            ring.setOutlineThickness(3.f);
+            window.draw(ring);
+
+            for (int i = -1; i <= 1; ++i) {
+                sf::RectangleShape spark({20.f, 4.f});
+                spark.setOrigin({10.f, 2.f});
+                spark.setPosition(impact.position + right * static_cast<float>(i) * (7.f + age * 8.f));
+                spark.setRotation(sf::degrees(impact.rotation + static_cast<float>(i) * 45.f));
+                spark.setFillColor(sf::Color(255, 220, 120, static_cast<std::uint8_t>(230 * progress)));
+                window.draw(spark);
+            }
+            continue;
+        }
+
+        if (impact.type == ProjectileType::Ice) {
+            sf::CircleShape frost(10.f + age * 16.f, 20);
+            frost.setOrigin({10.f + age * 16.f, 10.f + age * 16.f});
+            frost.setPosition(impact.position);
+            frost.setFillColor(sf::Color(120, 220, 255, static_cast<std::uint8_t>(65 * progress)));
+            frost.setOutlineColor(sf::Color(210, 250, 255, static_cast<std::uint8_t>(190 * progress)));
+            frost.setOutlineThickness(2.f);
+            window.draw(frost);
+
+            for (int i = -2; i <= 2; ++i) {
+                sf::RectangleShape shard({5.f, 14.f});
+                shard.setOrigin({2.5f, 7.f});
+                shard.setPosition(impact.position + right * static_cast<float>(i) * (6.f + age * 7.f) - forward * (8.f + age * 10.f));
+                shard.setRotation(sf::degrees(impact.rotation + 90.f + static_cast<float>(i) * 18.f));
+                shard.setFillColor(sf::Color(230, 255, 255, static_cast<std::uint8_t>(210 * progress)));
+                window.draw(shard);
+            }
+            continue;
+        }
+
+        sf::CircleShape splash(9.f + age * 10.f, 16);
+        splash.setOrigin({9.f + age * 10.f, 9.f + age * 10.f});
+        splash.setPosition(impact.position);
+        splash.setFillColor(sf::Color(205, 255, 70, static_cast<std::uint8_t>(70 * progress)));
+        splash.setOutlineColor(sf::Color(80, 150, 35, static_cast<std::uint8_t>(180 * progress)));
+        splash.setOutlineThickness(2.f);
+        window.draw(splash);
+
+        for (int i = -1; i <= 1; ++i) {
+            sf::CircleShape drop(3.f, 10);
+            drop.setOrigin({3.f, 3.f});
+            drop.setPosition(impact.position - forward * (10.f + age * 13.f) + right * static_cast<float>(i) * (8.f + age * 6.f));
+            drop.setFillColor(sf::Color(230, 255, 115, static_cast<std::uint8_t>(230 * progress)));
+            window.draw(drop);
+        }
     }
 
     for (const auto& projectile : projectiles) {

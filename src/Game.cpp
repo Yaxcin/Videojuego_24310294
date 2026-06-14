@@ -20,19 +20,19 @@ namespace {
     enum class MenuAction {
         None,
         Play,
-        Shop,
+        Characters,
         Options,
         Exit
     };
 
     MenuAction getMenuActionAt(float x, float y) {
-        const sf::FloatRect playButton({960.f, 350.f}, {270.f, 90.f});
-        const sf::FloatRect shopButton({980.f, 485.f}, {225.f, 80.f});
-        const sf::FloatRect optionsButton({970.f, 585.f}, {240.f, 75.f});
-        const sf::FloatRect exitButton({980.f, 685.f}, {230.f, 70.f});
+        const sf::FloatRect playButton({980.f, 190.f}, {275.f, 85.f});
+        const sf::FloatRect charactersButton({980.f, 292.f}, {275.f, 82.f});
+        const sf::FloatRect optionsButton({975.f, 400.f}, {285.f, 84.f});
+        const sf::FloatRect exitButton({1005.f, 508.f}, {235.f, 85.f});
 
         if (playButton.contains({x, y})) return MenuAction::Play;
-        if (shopButton.contains({x, y})) return MenuAction::Shop;
+        if (charactersButton.contains({x, y})) return MenuAction::Characters;
         if (optionsButton.contains({x, y})) return MenuAction::Options;
         if (exitButton.contains({x, y})) return MenuAction::Exit;
         return MenuAction::None;
@@ -281,8 +281,8 @@ void Game::handleEvents() {
                 roundPreviewVisible = true;
                 std::cout << "[MENU] Iniciar fiesta" << std::endl;
                 break;
-            case MenuAction::Shop:
-                std::cout << "[MENU] Tienda aun no implementada" << std::endl;
+            case MenuAction::Characters:
+                std::cout << "[MENU] Personajes aun no implementado" << std::endl;
                 break;
             case MenuAction::Options:
                 std::cout << "[MENU] Opciones aun no implementadas" << std::endl;

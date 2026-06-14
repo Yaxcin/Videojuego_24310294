@@ -477,5 +477,5 @@ bool Tower::missesFromHypnosis() const {
     if (!isHypnotized()) return false;
 
     std::uniform_real_distribution<float> chance(0.f, 1.f);
-    return chance(rng()) < 0.75f;
+    return chance(rng()) < 0.9f;
 }

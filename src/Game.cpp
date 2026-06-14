@@ -540,7 +540,7 @@ void Game::update() {
                     }
                     if (e->getType() == PinataType::FRUTA) {
                         float slowRadius = e->isSlowed() ? 85.f : 150.f;
-                        float slowDuration = e->isSlowed() ? 1.25f : 2.5f;
+                        float slowDuration = e->isSlowed() ? 2.5f : 5.f;
                         slowTowersNear(e->getPosition(), slowRadius, 0.5f, slowDuration);
                         std::cout << "[PINATA] Fruta ralentizo torres cercanas" << std::endl;
                     }

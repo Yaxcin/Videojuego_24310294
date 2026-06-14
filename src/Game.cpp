@@ -175,7 +175,7 @@ Game::Game(unsigned int w, unsigned int h)
       currentState(GameState::MENU),
       deltaTime(0.0f),
       gameSpeedMultiplier(1.f),
-      playerMoney(500.0f),
+      playerMoney(150.0f),
       playerLives(100),
       currentRound(1),
       enemiesLeftToSpawn(0),
@@ -185,6 +185,12 @@ Game::Game(unsigned int w, unsigned int h)
       selectedTowerType(TowerType::NINO_PALO),
       towerSelected(false),
       roundPreviewVisible(false),
+      tutorialOfferedThisSession(false),
+      tutorialChoiceVisible(false),
+      tutorialWaveActive(false),
+      tutorialStep(0),
+      tutorialSpawnTimer(0.f),
+      tutorialSpawnInterval(1.f),
       selectedPlacedTower(nullptr) {
     
     window.setFramerateLimit(60);
@@ -288,7 +294,36 @@ void Game::handleEvents() {
                 spawnDebugPinata(PinataType::BEBE_AZUL);
             }
             else if (keyEvent->code == sf::Keyboard::Key::Space) {
-                if (currentState == GameState::ROUND_PAUSE) {
+                if (currentState == GameState::TUTORIAL) {
+                    if (tutorialChoiceVisible) {
+                        skipTutorial();
+                    } else if (tutorialWaveActive) {
+                        std::cout << "[TUTORIAL] Termina la mini oleada primero" << std::endl;
+                    } else if (tutorialStep == 2) {
+                        startTutorialWave({
+                            PinataType::ENGRUDO,
+                            PinataType::ENGRUDO
+                        });
+                    } else if (tutorialStep == 5) {
+                        startTutorialWave({
+                            PinataType::ARCILLA,
+                            PinataType::FRUTA
+                        });
+                    } else if (tutorialStep == 7) {
+                        startTutorialWave({
+                            PinataType::ARCILLA,
+                            PinataType::REVELACION
+                        });
+                    } else if (tutorialStep == 9) {
+                        startTutorialWave({
+                            PinataType::HIPNOTIZADORA,
+                            PinataType::ENGRUDO,
+                            PinataType::ENGRUDO
+                        });
+                    } else if (tutorialStep >= 10) {
+                        finishTutorial();
+                    }
+                } else if (currentState == GameState::ROUND_PAUSE) {
                     if (roundPreviewVisible) {
                         roundPreviewVisible = false;
                         std::cout << "[UI] Resumen cerrado. Puedes colocar torres" << std::endl;
@@ -296,8 +331,16 @@ void Game::handleEvents() {
                         startWave();
                     }
                 } else if (currentState == GameState::MENU) {
-                    currentState = GameState::ROUND_PAUSE;
-                    roundPreviewVisible = true;
+                    enterPlayFromMenu();
+                }
+            }
+            else if (keyEvent->code == sf::Keyboard::Key::Enter) {
+                if (currentState == GameState::TUTORIAL) {
+                    if (tutorialChoiceVisible) {
+                        startTutorial();
+                    } else if (!tutorialWaveActive && tutorialStep == 3) {
+                        tutorialStep = 4;
+                    }
                 }
             }
         }
@@ -313,8 +356,7 @@ void Game::handleEvents() {
         MenuAction action = getMenuActionAt(menuX, menuY);
         switch (action) {
             case MenuAction::Play:
-                currentState = GameState::ROUND_PAUSE;
-                roundPreviewVisible = true;
+                enterPlayFromMenu();
                 std::cout << "[MENU] Iniciar fiesta" << std::endl;
                 break;
             case MenuAction::Characters:
@@ -333,6 +375,7 @@ void Game::handleEvents() {
     }
 
     float mapWidth = static_cast<float>(width) - PANEL_WIDTH;
+            bool editTowers = canEditTowers();
             if (mouseEvent->button == sf::Mouse::Button::Left && isSpeedButtonAt(mx, my)) {
                 toggleGameSpeed();
                 return;
@@ -346,6 +389,10 @@ void Game::handleEvents() {
             else if (mouseEvent->button == sf::Mouse::Button::Left) {
                 std::cout << "[MOUSE] x=" << mx << " y=" << my << std::endl;
                 if (mx >= mapWidth) {
+                    if (!editTowers) {
+                        std::cout << "[UI] Ahora no puedes seleccionar torres" << std::endl;
+                        return;
+                    }
                     // Click en panel - seleccionar torre
                     TowerType tipos[] = {
                         TowerType::NINO_PALO, TowerType::VIEJO_MACHETE,
@@ -355,6 +402,10 @@ void Game::handleEvents() {
                     };
                     int slot = static_cast<int>(my / 95.f);
                     if (slot >= 0 && slot < 7) {
+                        if (!isTutorialTowerAllowed(tipos[slot])) {
+                            std::cout << "[TUTORIAL] Esa torre se vera mas adelante" << std::endl;
+                            return;
+                        }
                         clearTowerSelection();
                         if (towerSelected && selectedTowerType == tipos[slot]) {
                             towerSelected = false;
@@ -371,20 +422,20 @@ void Game::handleEvents() {
                         return;
                     }
                     auto clickedTower = findTowerAt(mx, my);
-                    if (currentState == GameState::ROUND_PAUSE && selectedPlacedTower) {
+                    if (editTowers && selectedPlacedTower) {
                         if (clickedTower == selectedPlacedTower) {
                             clearTowerSelection();
                             std::cout << "[UI] Torre deseleccionada" << std::endl;
                         } else {
                             moveSelectedTower(mx, my);
                         }
-                    } else if (currentState == GameState::ROUND_PAUSE && clickedTower) {
+                    } else if (editTowers && clickedTower) {
                         towerSelected = false;
                         clearTowerSelection();
                         selectedPlacedTower = clickedTower;
                         selectedPlacedTower->setSelected(true);
                         std::cout << "[UI] Torre colocada seleccionada para mover" << std::endl;
-                    } else if (towerSelected) {
+                    } else if (towerSelected && editTowers) {
                         // Click en mapa - colocar torre
                         placeTower(mx, my);
                     }
@@ -396,6 +447,9 @@ void Game::handleEvents() {
 
 void Game::update() {
     switch (currentState) {
+        case GameState::TUTORIAL:
+            updateTutorial();
+            break;
         case GameState::ROUND_ACTIVE: {
     // Spawnear enemigos automaticamente
     if (enemiesLeftToSpawn > 0) {
@@ -521,7 +575,7 @@ void Game::update() {
             break;
     }
 
-    bool playSupportLoops = currentState == GameState::ROUND_ACTIVE;
+    bool playSupportLoops = currentState == GameState::ROUND_ACTIVE || (currentState == GameState::TUTORIAL && tutorialWaveActive);
     for (auto& tower : towers) {
         if (!tower) continue;
         tower->setLoopAnimationActive(playSupportLoops);
@@ -586,6 +640,7 @@ void Game::render() {
     renderPanel();
     renderHUD();
     renderRoundPreview();
+    renderTutorial();
 
     window.display();
 }
@@ -846,7 +901,7 @@ bool Game::isSpeedButtonAt(float x, float y) const {
 }
 
 void Game::placeTower(float x, float y) {
-    if (currentState != GameState::ROUND_PAUSE) {
+    if (!canEditTowers()) {
         std::cout << "[UI] No puedes colocar torres durante la oleada" << std::endl;
         return;
     }
@@ -857,6 +912,10 @@ void Game::placeTower(float x, float y) {
 
     sf::Vector2f towerPosition{x, y};
     if (!isValidTowerPosition(towerPosition)) return;
+    if (!isTutorialTowerAllowed(selectedTowerType)) {
+        std::cout << "[TUTORIAL] Usa la torre indicada por el tutorial" << std::endl;
+        return;
+    }
 
     int currentTypeCount = countTowersOfType(selectedTowerType);
     int towerLimit = getTowerLimit(selectedTowerType);
@@ -901,6 +960,23 @@ void Game::placeTower(float x, float y) {
     if (playerMoney >= cost) {
         playerMoney -= cost;
         towers.push_back(tower);
+        if (currentState == GameState::TUTORIAL) {
+            if (tutorialStep == 1) {
+                tutorialStep = 2;
+            } else if (tutorialStep == 4 &&
+                       countTowersOfType(TowerType::RASPADERO) > 0 &&
+                       countTowersOfType(TowerType::DON_COHETES) > 0) {
+                tutorialStep = 5;
+            } else if (tutorialStep == 6 &&
+                       countTowersOfType(TowerType::VIEJO_MACHETE) > 0 &&
+                       countTowersOfType(TowerType::TAQUERO) > 0) {
+                tutorialStep = 7;
+            } else if (tutorialStep == 8 &&
+                       countTowersOfType(TowerType::ABUELITA) > 0 &&
+                       countTowersOfType(TowerType::ORGANILLERO) > 0) {
+                tutorialStep = 9;
+            }
+        }
         std::cout << "[TOWER] Colocada en (" << x << ", " << y << "). Dinero: " << playerMoney << std::endl;
     } else {
         std::cout << "[UI] Dinero insuficiente!" << std::endl;
@@ -1015,6 +1091,407 @@ float Game::getOrganilleroRangeScale() const {
     return hasActiveHypnotizer() ? 0.7f : 1.f;
 }
 
+bool Game::canEditTowers() const {
+    if (currentState == GameState::ROUND_PAUSE) return !roundPreviewVisible;
+    if (currentState == GameState::TUTORIAL) return !tutorialChoiceVisible && !tutorialWaveActive && tutorialStep >= 1 && tutorialStep <= 9;
+    return false;
+}
+
+bool Game::isTutorialTowerAllowed(TowerType type) const {
+    if (currentState != GameState::TUTORIAL || tutorialChoiceVisible) return true;
+    if (tutorialStep <= 3) return type == TowerType::NINO_PALO;
+    if (tutorialStep == 4 || tutorialStep == 5) {
+        return type == TowerType::RASPADERO || type == TowerType::DON_COHETES;
+    }
+    if (tutorialStep == 6 || tutorialStep == 7) {
+        return type == TowerType::VIEJO_MACHETE || type == TowerType::TAQUERO;
+    }
+    if (tutorialStep == 8 || tutorialStep == 9) {
+        return type == TowerType::ABUELITA || type == TowerType::ORGANILLERO;
+    }
+    return true;
+}
+
+void Game::resetPlaySession() {
+    playerMoney = 150.f;
+    playerLives = 100;
+    currentRound = 1;
+    enemiesLeftToSpawn = 0;
+    spawnTimer = 0.f;
+    spawnInterval = 1.5f;
+    gameSpeedMultiplier = 1.f;
+    selectedTowerType = TowerType::NINO_PALO;
+    towerSelected = false;
+    roundPreviewVisible = false;
+    clearTowerSelection();
+    enemies.clear();
+    towers.clear();
+    projectiles.clear();
+    explosionEffects.clear();
+    impactEffects.clear();
+    tutorialWaveActive = false;
+    tutorialStep = 0;
+    tutorialSpawnTimer = 0.f;
+    tutorialSpawnQueue.clear();
+}
+
+void Game::enterPlayFromMenu() {
+    resetPlaySession();
+    if (!tutorialOfferedThisSession) {
+        currentState = GameState::TUTORIAL;
+        tutorialChoiceVisible = true;
+        tutorialStep = 0;
+        std::cout << "[TUTORIAL] Pregunta inicial" << std::endl;
+        return;
+    }
+
+    currentState = GameState::ROUND_PAUSE;
+    roundPreviewVisible = true;
+}
+
+void Game::startTutorial() {
+    tutorialOfferedThisSession = true;
+    tutorialChoiceVisible = false;
+    tutorialWaveActive = false;
+    tutorialStep = 1;
+    playerMoney = 75.f;
+    selectedTowerType = TowerType::NINO_PALO;
+    towerSelected = true;
+    std::cout << "[TUTORIAL] Iniciado" << std::endl;
+}
+
+void Game::skipTutorial() {
+    tutorialOfferedThisSession = true;
+    tutorialChoiceVisible = false;
+    tutorialWaveActive = false;
+    tutorialStep = 0;
+    currentState = GameState::ROUND_PAUSE;
+    roundPreviewVisible = true;
+    playerMoney = 150.f;
+    std::cout << "[TUTORIAL] Saltado" << std::endl;
+}
+
+void Game::finishTutorial() {
+    tutorialOfferedThisSession = true;
+    tutorialChoiceVisible = false;
+    tutorialWaveActive = false;
+    tutorialStep = 0;
+    currentState = GameState::ROUND_PAUSE;
+    roundPreviewVisible = true;
+    playerMoney = 150.f;
+    playerLives = 100;
+    currentRound = 1;
+    enemiesLeftToSpawn = 0;
+    enemies.clear();
+    towers.clear();
+    projectiles.clear();
+    explosionEffects.clear();
+    impactEffects.clear();
+    towerSelected = false;
+    clearTowerSelection();
+    std::cout << "[TUTORIAL] Completado. Ronda 1 lista" << std::endl;
+}
+
+void Game::startTutorialWave(const std::vector<PinataType>& types) {
+    tutorialSpawnQueue = types;
+    tutorialWaveActive = true;
+    tutorialSpawnTimer = 0.f;
+    tutorialSpawnInterval = 0.95f;
+    towerSelected = false;
+    clearTowerSelection();
+    std::cout << "[TUTORIAL] Mini oleada iniciada" << std::endl;
+}
+
+void Game::updateTutorial() {
+    if (tutorialChoiceVisible) return;
+
+    if (tutorialWaveActive && !tutorialSpawnQueue.empty()) {
+        tutorialSpawnTimer -= deltaTime;
+        if (tutorialSpawnTimer <= 0.f) {
+            PinataType type = tutorialSpawnQueue.front();
+            tutorialSpawnQueue.erase(tutorialSpawnQueue.begin());
+            enemies.push_back(std::make_shared<Pinata>(map.getWaypoints(), type, 0));
+            tutorialSpawnTimer = tutorialSpawnInterval;
+        }
+    }
+
+    for (auto& enemy : enemies) {
+        if (enemy && enemy->isAlive()) enemy->update(deltaTime);
+        if (enemy && enemy->hasReachedEnd()) damagePlayer(enemy->getEscapeDamage());
+    }
+
+    updateTowerRangeVisuals();
+    updateHypnosisAuras();
+    for (auto& tower : towers) {
+        if (!tower) continue;
+
+        float fireRateMultiplier = 1.f;
+        if (!tower->isSupportTower()) {
+            float supportRangeScale = getOrganilleroRangeScale();
+            for (const auto& support : towers) {
+                if (support && support->isSupportTower() && support->isInScaledRange(tower->getPosition(), supportRangeScale)) {
+                    float baseBuff = (tower->getType() == TowerType::ABUELITA) ? 1.05f : 1.35f;
+                    fireRateMultiplier = 1.f + (baseBuff - 1.f) * support->getSupportMultiplierScale();
+                    break;
+                }
+            }
+        }
+        tower->combat(deltaTime, enemies, fireRateMultiplier, &towers);
+        if (auto projectile = tower->consumeProjectileRequest()) {
+            float projectileSpeed = 520.f;
+            if (projectile->type == ProjectileType::Chancla) projectileSpeed = 760.f;
+            if (projectile->type == ProjectileType::Rocket) projectileSpeed = 430.f;
+            if (projectile->type == ProjectileType::Ice) projectileSpeed = 500.f;
+            projectiles.push_back(Projectile{
+                projectile->startPosition,
+                projectile->target,
+                projectile->damage,
+                projectileSpeed,
+                0.f,
+                projectile->type,
+                projectile->splashRadius,
+                true
+            });
+        }
+    }
+    updateProjectiles();
+
+    std::vector<std::shared_ptr<Pinata>> spawnedPinatas;
+    enemies.erase(
+        std::remove_if(enemies.begin(), enemies.end(),
+            [this, &spawnedPinatas](const std::shared_ptr<Pinata>& e) {
+                if (!e) return true;
+                if (e->isAlive()) return false;
+                if (!e->hasReachedEnd()) {
+                    if (e->getType() == PinataType::REVELACION) {
+                        spawnedPinatas.push_back(std::make_shared<Pinata>(
+                            map.getWaypoints(),
+                            PinataType::BEBE_ROSA,
+                            0,
+                            e->getPosition() + sf::Vector2f(-12.f, 0.f),
+                            e->getCurrentWaypointIndex()
+                        ));
+                        spawnedPinatas.push_back(std::make_shared<Pinata>(
+                            map.getWaypoints(),
+                            PinataType::BEBE_AZUL,
+                            0,
+                            e->getPosition() + sf::Vector2f(12.f, 0.f),
+                            e->getCurrentWaypointIndex()
+                        ));
+                    }
+                    if (e->getType() == PinataType::FRUTA) {
+                        slowTowersNear(e->getPosition(), 2000.f, 0.5f, 2.6f);
+                    }
+                    addPlayerMoney(static_cast<float>(e->getReward()));
+                }
+                return true;
+            }),
+        enemies.end()
+    );
+    enemies.insert(enemies.end(), spawnedPinatas.begin(), spawnedPinatas.end());
+
+    if (tutorialWaveActive && tutorialSpawnQueue.empty() && enemies.empty()) {
+        tutorialWaveActive = false;
+        if (tutorialStep == 2) {
+            playerMoney = std::max(playerMoney, 320.f);
+            tutorialStep = 3;
+        } else if (tutorialStep == 5) {
+            playerMoney = std::max(playerMoney, 225.f);
+            tutorialStep = 6;
+        } else if (tutorialStep == 7) {
+            playerMoney = std::max(playerMoney, 410.f);
+            tutorialStep = 8;
+        } else if (tutorialStep == 9) {
+            tutorialStep = 10;
+        }
+    }
+}
+
+void Game::renderTutorial() {
+    if (currentState != GameState::TUTORIAL) return;
+
+    float mapWidth = static_cast<float>(width) - PANEL_WIDTH;
+
+    if (tutorialChoiceVisible) {
+        sf::RectangleShape overlay({mapWidth, static_cast<float>(height)});
+        overlay.setFillColor(sf::Color(0, 0, 0, 130));
+        window.draw(overlay);
+
+        sf::RectangleShape box({560.f, 220.f});
+        box.setOrigin({280.f, 110.f});
+        box.setPosition({mapWidth / 2.f, static_cast<float>(height) / 2.f});
+        box.setFillColor(sf::Color(18, 18, 18, 230));
+        box.setOutlineColor(sf::Color(255, 230, 90, 210));
+        box.setOutlineThickness(3.f);
+        window.draw(box);
+
+        sf::Text title(hudFont, "Primera vez en la fiesta?", 30);
+        title.setFillColor(sf::Color::White);
+        title.setPosition({mapWidth / 2.f - 220.f, static_cast<float>(height) / 2.f - 75.f});
+        window.draw(title);
+
+        sf::Text body(hudFont, "Aprende colocando personajes y jugando mini rondas.", 21);
+        body.setFillColor(sf::Color(230, 230, 230));
+        body.setPosition({mapWidth / 2.f - 220.f, static_cast<float>(height) / 2.f - 20.f});
+        window.draw(body);
+
+        sf::Text hint(hudFont, "ENTER: Tutorial    SPACE: Saltar", 24);
+        hint.setFillColor(sf::Color::Yellow);
+        hint.setPosition({mapWidth / 2.f - 220.f, static_cast<float>(height) / 2.f + 45.f});
+        window.draw(hint);
+        return;
+    }
+
+    std::string title = "Tutorial";
+    std::string body = "";
+    std::string body2 = "";
+    std::string hint = "";
+
+    switch (tutorialStep) {
+        case 1:
+            title = "Paso 1: Coloca tu primer personaje";
+            body = "Selecciona al Nino con Palo y ponlo sobre el pasto.";
+            body2 = "El camino debe quedar libre.";
+            hint = "El boton del Nino esta resaltado. Click en el mapa para colocarlo.";
+            break;
+        case 2:
+            title = "Paso 2: Inicia una mini oleada";
+            body = tutorialWaveActive
+                ? "Las pinatas estan entrando. Mira como tu personaje las ataca."
+                : "Bien. Ahora presiona SPACE para romper unas pinatas de engrudo.";
+            body2 = tutorialWaveActive ? "" : "Seran pocas para que veas el combate sin presion.";
+            hint = tutorialWaveActive ? "Espera a que termine la mini oleada." : "SPACE: Iniciar mini oleada";
+            break;
+        case 3:
+            title = "Paso 3: Dulces y movimiento";
+            body = "Cada pinata derrotada da dulces.";
+            body2 = "Entre rondas puedes seleccionar una torre y moverla.";
+            hint = "Prueba mover una torre si quieres. ENTER: Continuar";
+            break;
+        case 4:
+            title = "Paso 4: Roles especiales";
+            body = "Coloca un Raspadero y un Don Cohetes.";
+            body2 = "Uno ralentiza y el otro pega en area.";
+            hint = "Tienes dulces para comprar ambos.";
+            break;
+        case 5:
+            title = "Paso 5: Arcilla y Fruta";
+            body = tutorialWaveActive
+                ? "Arcilla resiste. Fruta ralentiza torres al romperse."
+                : "Ahora veremos una mini oleada con Arcilla y Fruta.";
+            body2 = tutorialWaveActive ? "En tutorial la fruta afectara torres para que se note." : "";
+            hint = tutorialWaveActive ? "Observa los efectos especiales." : "SPACE: Iniciar mini oleada especial";
+            break;
+        case 6:
+            title = "Paso 6: Dano directo";
+            body = "Coloca al Viejo con Machete y al Taquero.";
+            body2 = "El Viejo ayuda contra Arcilla; el Taquero lanza limones.";
+            hint = "Ambos estan desbloqueados ahora.";
+            break;
+        case 7:
+            title = "Paso 7: Revelacion";
+            body = tutorialWaveActive
+                ? "La pinata de Revelacion se rompe en pinatas bebe."
+                : "Ahora prueba contra Arcilla y Revelacion.";
+            body2 = tutorialWaveActive ? "Observa si aparecen las pinatas bebe." : "";
+            hint = tutorialWaveActive ? "Espera a que termine la mini oleada." : "SPACE: Iniciar mini oleada";
+            break;
+        case 8:
+            title = "Paso 8: Apoyo y control";
+            body = "Coloca una Abuelita y un Organillero.";
+            body2 = "La Abuelita cubre todo el mapa; el Organillero protege y acelera.";
+            hint = "Ambos estan desbloqueados ahora.";
+            break;
+        case 9:
+            title = "Paso 9: Hipnotizadora";
+            body = tutorialWaveActive
+                ? "La Hipnotizadora hace fallar ataques si no hay proteccion."
+                : "Ahora veremos una Hipnotizadora.";
+            body2 = tutorialWaveActive ? "Organillero y Abuelita ayudan contra esa amenaza." : "";
+            hint = tutorialWaveActive ? "Espera a que termine la mini oleada." : "SPACE: Iniciar mini oleada";
+            break;
+        default:
+            title = "Tutorial completado";
+            body = "Ya sabes colocar, iniciar oleadas, ganar dulces y reconocer roles especiales.";
+            body2 = "Ahora empieza la partida normal.";
+            hint = "SPACE: Empezar la ronda 1";
+            break;
+    }
+
+    sf::RectangleShape box({700.f, 152.f});
+    box.setPosition({24.f, static_cast<float>(height) - 176.f});
+    box.setFillColor(sf::Color(18, 18, 18, 225));
+    box.setOutlineColor(sf::Color(255, 230, 90, 190));
+    box.setOutlineThickness(2.f);
+    window.draw(box);
+
+    sf::Text titleText(hudFont, title, 24);
+    titleText.setFillColor(sf::Color::White);
+    titleText.setPosition({44.f, static_cast<float>(height) - 158.f});
+    window.draw(titleText);
+
+    sf::Text bodyText(hudFont, body, 18);
+    bodyText.setFillColor(sf::Color(225, 225, 225));
+    bodyText.setPosition({44.f, static_cast<float>(height) - 118.f});
+    window.draw(bodyText);
+
+    if (!body2.empty()) {
+        sf::Text bodyText2(hudFont, body2, 18);
+        bodyText2.setFillColor(sf::Color(225, 225, 225));
+        bodyText2.setPosition({44.f, static_cast<float>(height) - 92.f});
+        window.draw(bodyText2);
+    }
+
+    sf::Text hintText(hudFont, hint, 18);
+    hintText.setFillColor(sf::Color::Yellow);
+    hintText.setPosition({44.f, static_cast<float>(height) - 56.f});
+    window.draw(hintText);
+
+    if (tutorialStep == 1) {
+        sf::RectangleShape highlight({188.f, 88.f});
+        highlight.setPosition({mapWidth + 6.f, 5.f});
+        highlight.setFillColor(sf::Color(255, 230, 80, 35));
+        highlight.setOutlineColor(sf::Color(255, 245, 120, 230));
+        highlight.setOutlineThickness(4.f);
+        window.draw(highlight);
+    } else if (tutorialStep == 4 || tutorialStep == 6 || tutorialStep == 8) {
+        auto drawSlotHighlight = [this, mapWidth](int slot, const sf::Color& fill, const sf::Color& outline) {
+            sf::RectangleShape highlight({188.f, 88.f});
+            highlight.setPosition({mapWidth + 6.f, static_cast<float>(slot) * 95.f + 5.f});
+            highlight.setFillColor(fill);
+            highlight.setOutlineColor(outline);
+            highlight.setOutlineThickness(3.f);
+            window.draw(highlight);
+        };
+
+        if (tutorialStep == 6) {
+            drawSlotHighlight(1, sf::Color(255, 230, 80, 28), sf::Color(255, 245, 120, 210));
+            drawSlotHighlight(2, sf::Color(120, 255, 120, 28), sf::Color(160, 255, 160, 210));
+            return;
+        }
+
+        if (tutorialStep == 8) {
+            drawSlotHighlight(3, sf::Color(255, 230, 80, 28), sf::Color(255, 245, 120, 210));
+            drawSlotHighlight(5, sf::Color(120, 220, 255, 28), sf::Color(160, 240, 255, 210));
+            return;
+        }
+
+        sf::RectangleShape rocketHighlight({188.f, 88.f});
+        rocketHighlight.setPosition({mapWidth + 6.f, 4.f * 95.f + 5.f});
+        rocketHighlight.setFillColor(sf::Color(255, 230, 80, 28));
+        rocketHighlight.setOutlineColor(sf::Color(255, 245, 120, 210));
+        rocketHighlight.setOutlineThickness(3.f);
+        window.draw(rocketHighlight);
+
+        sf::RectangleShape iceHighlight({188.f, 88.f});
+        iceHighlight.setPosition({mapWidth + 6.f, 6.f * 95.f + 5.f});
+        iceHighlight.setFillColor(sf::Color(120, 220, 255, 28));
+        iceHighlight.setOutlineColor(sf::Color(160, 240, 255, 210));
+        iceHighlight.setOutlineThickness(3.f);
+        window.draw(iceHighlight);
+    }
+}
+
 void Game::renderPanel() {
     float mapWidth = static_cast<float>(width) - PANEL_WIDTH;
 
@@ -1033,10 +1510,11 @@ void Game::renderPanel() {
     for (int i = 0; i < 7; i++) {
         float slotY = i * 95.f + 5.f;
         bool isSelected = towerSelected && selectedTowerType == tipos[i];
+        bool allowed = isTutorialTowerAllowed(tipos[i]);
 
         sf::RectangleShape slot(sf::Vector2f(188.f, 88.f));
         slot.setPosition({mapWidth + 6.f, slotY});
-        slot.setFillColor(sf::Color(50, 50, 50));
+        slot.setFillColor(allowed ? sf::Color(50, 50, 50) : sf::Color(28, 28, 28));
         if (isSelected) {
             slot.setOutlineColor(sf::Color::Yellow);
             slot.setOutlineThickness(3.f);
@@ -1048,25 +1526,26 @@ void Game::renderPanel() {
             sf::Sprite spr(*tex);
             spr.setOrigin({32.f, 32.f});
             spr.setPosition({mapWidth + 50.f, slotY + 44.f});
+            if (!allowed) spr.setColor(sf::Color(95, 95, 95, 170));
             window.draw(spr);
         }
 
         sf::Text costText(hudFont, "$" + std::to_string(getTowerCost(tipos[i])), 20);
-        costText.setFillColor(sf::Color(255, 215, 0));
+        costText.setFillColor(allowed ? sf::Color(255, 215, 0) : sf::Color(120, 120, 120));
         costText.setPosition({mapWidth + 105.f, slotY + 22.f});
         window.draw(costText);
 
         int placedCount = countTowersOfType(tipos[i]);
         int towerLimit = getTowerLimit(tipos[i]);
         sf::Text limitText(hudFont, std::to_string(placedCount) + "/" + std::to_string(towerLimit), 16);
-        limitText.setFillColor(placedCount >= towerLimit ? sf::Color(255, 120, 120) : sf::Color(210, 210, 210));
+        limitText.setFillColor(!allowed ? sf::Color(100, 100, 100) : (placedCount >= towerLimit ? sf::Color(255, 120, 120) : sf::Color(210, 210, 210)));
         limitText.setPosition({mapWidth + 108.f, slotY + 52.f});
         window.draw(limitText);
     }
 }
 
 void Game::renderTowerPreview() {
-    if (currentState != GameState::ROUND_PAUSE) return;
+    if (!canEditTowers()) return;
     if (roundPreviewVisible) return;
     if (!towerSelected && !selectedPlacedTower) return;
 
@@ -1183,6 +1662,7 @@ void Game::updateDebugInfo() {
     oss << "State: ";
     switch (currentState) {
         case GameState::MENU: oss << "MENU"; break;
+        case GameState::TUTORIAL: oss << "TUTORIAL"; break;
         case GameState::ROUND_ACTIVE: oss << "ROUND_ACTIVE"; break;
         case GameState::ROUND_PAUSE: oss << "ROUND_PAUSE"; break;
         case GameState::COLLECTING_COINS: oss << "COLLECTING_COINS"; break;
@@ -1235,7 +1715,15 @@ void Game::renderHUD() {
 
     // Mensaje de estado
     std::string msg = "";
-    if (currentState == GameState::MENU || currentState == GameState::ROUND_PAUSE) {
+    if (currentState == GameState::TUTORIAL) {
+        if (tutorialChoiceVisible) {
+            msg = "ENTER: Tutorial | SPACE: Saltar";
+        } else if (tutorialWaveActive) {
+            msg = "Tutorial: mini oleada";
+        } else {
+            msg = "Tutorial interactivo";
+        }
+    } else if (currentState == GameState::MENU || currentState == GameState::ROUND_PAUSE) {
         msg = (currentState == GameState::ROUND_PAUSE && roundPreviewVisible)
             ? "SPACE: Preparar defensas"
             : "SPACE: Iniciar oleada";

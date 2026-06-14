@@ -11,11 +11,11 @@ namespace {
 
     PinataStats getStatsForType(PinataType type) {
         switch (type) {
-            case PinataType::ENGRUDO: return {90.f, 70, 8};
+            case PinataType::ENGRUDO: return {88.f, 55, 8};
             case PinataType::ARCILLA: return {68.f, 150, 14};
             case PinataType::REVELACION: return {85.f, 220, 22};
             case PinataType::FRUTA: return {82.f, 120, 12};
-            case PinataType::HIPNOTIZADORA: return {78.f, 140, 16};
+            case PinataType::HIPNOTIZADORA: return {78.f, 180, 16};
             case PinataType::BEBE_ROSA: return {95.f, 45, 4};
             case PinataType::BEBE_AZUL: return {95.f, 45, 4};
             default: return {90.f, 70, 8};

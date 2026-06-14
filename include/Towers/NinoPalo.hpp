@@ -6,7 +6,7 @@
 class NinoPalo : public Tower {
 public:
     NinoPalo(float x, float y)
-        : Tower(x, y, TowerType::NINO_PALO, 120.f, 15, 1.2f, 75) {}
+        : Tower(x, y, TowerType::NINO_PALO, 125.f, 30, 1.25f, 75) {}
 };
 
 #endif

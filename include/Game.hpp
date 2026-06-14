@@ -100,6 +100,13 @@ private:
     TowerType selectedTowerType;
     bool towerSelected;
     bool roundPreviewVisible;
+    bool tutorialOfferedThisSession;
+    bool tutorialChoiceVisible;
+    bool tutorialWaveActive;
+    int tutorialStep;
+    float tutorialSpawnTimer;
+    float tutorialSpawnInterval;
+    std::vector<PinataType> tutorialSpawnQueue;
     std::shared_ptr<Tower> selectedPlacedTower;
     static constexpr float PANEL_WIDTH = 200.f;
 
@@ -111,6 +118,8 @@ private:
     void updateDebugInfo();
     void spawnDebugPinata(PinataType type);
     int countTowersOfType(TowerType type) const;
+    bool canEditTowers() const;
+    bool isTutorialTowerAllowed(TowerType type) const;
     void toggleGameSpeed();
     bool isSpeedButtonAt(float x, float y) const;
     void placeTower(float x, float y);
@@ -123,6 +132,14 @@ private:
     void updateHypnosisAuras();
     bool hasActiveHypnotizer() const;
     float getOrganilleroRangeScale() const;
+    void resetPlaySession();
+    void enterPlayFromMenu();
+    void startTutorial();
+    void skipTutorial();
+    void finishTutorial();
+    void startTutorialWave(const std::vector<PinataType>& types);
+    void updateTutorial();
+    void renderTutorial();
     void renderPanel();
     void renderTowerPreview();
     void renderRoundPreview();

@@ -178,19 +178,6 @@ namespace {
         return preview;
     }
 
-    const char* getPinataDebugName(PinataType type) {
-        switch (type) {
-            case PinataType::ENGRUDO: return "Engrudo";
-            case PinataType::ARCILLA: return "Arcilla";
-            case PinataType::REVELACION: return "Revelacion";
-            case PinataType::FRUTA: return "Fruta";
-            case PinataType::HIPNOTIZADORA: return "Hipnotizadora";
-            case PinataType::BEBE_ROSA: return "Bebe rosa";
-            case PinataType::BEBE_AZUL: return "Bebe azul";
-            default: return "Desconocida";
-        }
-    }
-
     const char* getGuidePinataTexturePath(PinataType type) {
         switch (type) {
             case PinataType::ENGRUDO: return "assets/textures/pinatas/engrudo.png";
@@ -317,8 +304,8 @@ void Game::loadMusic() {
 
     menuMusic.setLooping(true);
     gameplayMusic.setLooping(true);
-    victoryMusic.setLooping(false);
-    defeatMusic.setLooping(false);
+    victoryMusic.setLooping(true);
+    defeatMusic.setLooping(true);
 
     applyMusicVolumes();
 }
@@ -498,10 +485,6 @@ void Game::handleEvents() {
             else if (pauseMenuVisible) {
                 continue;
             }
-            else if (keyEvent->code == sf::Keyboard::Key::Num1) {
-                currentState = GameState::MENU;
-                std::cout << "[STATE] MENU" << std::endl;
-            }
             else if (keyEvent->code == sf::Keyboard::Key::Backspace) {
                 if (currentState == GameState::CHARACTERS || currentState == GameState::OPTIONS) {
                     playSfx(SfxType::UiClick);
@@ -509,57 +492,9 @@ void Game::handleEvents() {
                     std::cout << "[STATE] MENU" << std::endl;
                 }
             }
-            else if (keyEvent->code == sf::Keyboard::Key::Num2) {
-                currentState = GameState::ROUND_ACTIVE;
-                std::cout << "[STATE] ROUND_ACTIVE" << std::endl;
-            }
-            else if (keyEvent->code == sf::Keyboard::Key::Num3) {
-                currentState = GameState::ROUND_PAUSE;
-                roundPreviewVisible = true;
-                std::cout << "[STATE] ROUND_PAUSE" << std::endl;
-            }
-            else if (keyEvent->code == sf::Keyboard::Key::Num4) {
-                currentState = GameState::COLLECTING_COINS;
-                std::cout << "[STATE] COLLECTING_COINS" << std::endl;
-            }
-            else if (keyEvent->code == sf::Keyboard::Key::Num5) {
-                currentState = GameState::VICTORY;
-                std::cout << "[STATE] VICTORY" << std::endl;
-            }
-            else if (keyEvent->code == sf::Keyboard::Key::Num6) {
-                currentState = GameState::DEFEAT;
-                std::cout << "[STATE] DEFEAT" << std::endl;
-            }
-            else if (keyEvent->code == sf::Keyboard::Key::M) {
-                addPlayerMoney(100);
-                std::cout << "[DEBUG] +100 Money. Total: " << playerMoney << std::endl;
-            }
-            else if (keyEvent->code == sf::Keyboard::Key::L) {
-                damagePlayer(1);
-                std::cout << "[DEBUG] -1 Life. Total: " << playerLives << std::endl;
-            }
             else if (keyEvent->code == sf::Keyboard::Key::Tab) {
                 playSfx(SfxType::UiClick);
                 toggleGameSpeed();
-            }
-            else if (keyEvent->code == sf::Keyboard::Key::E) {
-                spawnDebugPinata(PinataType::ENGRUDO);
-            }
-            else if (keyEvent->code == sf::Keyboard::Key::R) {
-                spawnDebugPinata(PinataType::ARCILLA);
-            }
-            else if (keyEvent->code == sf::Keyboard::Key::T) {
-                spawnDebugPinata(PinataType::REVELACION);
-            }
-            else if (keyEvent->code == sf::Keyboard::Key::F) {
-                spawnDebugPinata(PinataType::FRUTA);
-            }
-            else if (keyEvent->code == sf::Keyboard::Key::H) {
-                spawnDebugPinata(PinataType::HIPNOTIZADORA);
-            }
-            else if (keyEvent->code == sf::Keyboard::Key::B) {
-                spawnDebugPinata(PinataType::BEBE_ROSA);
-                spawnDebugPinata(PinataType::BEBE_AZUL);
             }
             else if (keyEvent->code == sf::Keyboard::Key::Space) {
                 if (currentState == GameState::TUTORIAL) {
@@ -1267,12 +1202,6 @@ void Game::renderProjectiles() {
         pulp.setFillColor(sf::Color(245, 255, 180, 210));
         window.draw(pulp);
     }
-}
-
-void Game::spawnDebugPinata(PinataType type) {
-    enemies.push_back(std::make_shared<Pinata>(map.getWaypoints(), type, currentRound));
-    std::cout << "[DEBUG] Spawn " << getPinataDebugName(type)
-              << ". Total: " << enemies.size() << std::endl;
 }
 
 int Game::countTowersOfType(TowerType type) const {
@@ -2150,8 +2079,8 @@ void Game::renderOptions() {
         {"SPACE", "Cerrar resumen o iniciar oleada"},
         {"ENTER", "Aceptar pasos del tutorial"},
         {"TAB", "Cambiar velocidad x1 / x2 en partida"},
-        {"Backspace", "Volver desde pantallas del menu"},
-        {"E/R/T/F/H/B", "Spawnear pinatas de prueba"}
+        {"ESC", "Pausar durante una partida"},
+        {"Backspace", "Volver desde pantallas del menu"}
     };
 
     float y = 198.f;

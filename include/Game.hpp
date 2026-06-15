@@ -165,7 +165,6 @@ private:
     void updateProjectiles();
     void renderProjectiles();
     void updateDebugInfo();
-    void spawnDebugPinata(PinataType type);
     int countTowersOfType(TowerType type) const;
     bool canEditTowers() const;
     bool isTutorialTowerAllowed(TowerType type) const;

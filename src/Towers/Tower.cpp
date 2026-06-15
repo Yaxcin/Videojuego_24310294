@@ -36,7 +36,7 @@ Tower::Tower(float x, float y, TowerType type, float range, int damage, float fi
       loopAnimationDuration(0.8f), loopAnimationFrame(0), loopAnimationFrameCount(0),
       rangeVisualScale(1.f), lastTargetPosition(x, y), attackEffectTimer(0.f), areaEffectTimer(0.f),
       supportActionCooldown(0.f),
-      attackSlowTimer(0.f), attackSlowMultiplier(1.f), hypnosisProtectionTimer(0.f),
+      attackSlowTimer(0.f), attackSlowMultiplier(1.f), hypnosisProtectionTimer(0.f), hypnosisTimer(0.f),
       hypnotized(false) {
 
     rangeCircle.setRadius(range);
@@ -201,6 +201,12 @@ void Tower::combat(
     if (hypnosisProtectionTimer > 0.f) {
         hypnosisProtectionTimer -= deltaTime;
     }
+    if (hypnosisTimer > 0.f) {
+        hypnosisTimer -= deltaTime;
+        if (hypnosisTimer <= 0.f) {
+            hypnotized = false;
+        }
+    }
     if (isSupportTower()) return;
 
     float effectiveMultiplier = std::max(0.1f, fireRateMultiplier * attackSlowMultiplier);
@@ -264,11 +270,21 @@ void Tower::applyAttackSlow(float multiplier, float duration) {
 }
 
 void Tower::setHypnotized(bool value) {
-    hypnotized = value && !isImmuneToHypnosis() && !isHypnosisProtected();
+    if (!value) {
+        hypnotized = false;
+        hypnosisTimer = 0.f;
+        return;
+    }
+
+    if (!isImmuneToHypnosis() && !isHypnosisProtected()) {
+        hypnotized = true;
+        hypnosisTimer = std::max(hypnosisTimer, 5.f);
+    }
 }
 
 void Tower::applyHypnosisProtection(float duration) {
     hypnotized = false;
+    hypnosisTimer = 0.f;
     hypnosisProtectionTimer = std::max(hypnosisProtectionTimer, duration);
 }
 

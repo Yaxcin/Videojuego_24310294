@@ -42,7 +42,7 @@ public:
     TowerType getType() const { return towerType; }
     bool isSupportTower() const { return towerType == TowerType::ORGANILLERO; }
     bool isAttackSlowed() const { return attackSlowTimer > 0.f; }
-    bool isHypnotized() const { return hypnotized; }
+    bool isHypnotized() const { return hypnotized && hypnosisTimer > 0.f; }
     bool isHypnosisProtected() const { return hypnosisProtectionTimer > 0.f; }
     bool isImmuneToHypnosis() const { return towerType == TowerType::ABUELITA || towerType == TowerType::ORGANILLERO; }
     float getSupportMultiplierScale() const { return isAttackSlowed() ? attackSlowMultiplier : 1.f; }
@@ -92,6 +92,7 @@ protected:
     float attackSlowTimer;
     float attackSlowMultiplier;
     float hypnosisProtectionTimer;
+    float hypnosisTimer;
     bool hypnotized;
     std::optional<ProjectileRequest> pendingProjectileRequest;
 

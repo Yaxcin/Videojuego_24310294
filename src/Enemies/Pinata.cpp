@@ -21,6 +21,12 @@ namespace {
             default: return {90.f, 70, 8};
         }
     }
+
+    int getRewardForRound(int baseReward, int round) {
+        if (round >= 11) return std::max(1, baseReward * 65 / 100);
+        if (round >= 7) return std::max(1, baseReward * 80 / 100);
+        return baseReward;
+    }
 }
 
 Pinata::Pinata(const std::vector<sf::Vector2f>& waypoints, PinataType type, int round)
@@ -36,12 +42,12 @@ Pinata::Pinata(
 )
     : Entity(waypoints[0].x, waypoints[0].y),
       type(type),
-      speed(getStatsForType(type).speed + static_cast<float>(round) * 2.f),
+      speed((getStatsForType(type).speed + static_cast<float>(round) * 2.f) * 1.10f),
       speedMultiplier(1.f),
       slowTimer(0.f),
       health(getStatsForType(type).health + round * 6),
       maxHealth(getStatsForType(type).health + round * 6),
-      reward(getStatsForType(type).reward),
+      reward(getRewardForRound(getStatsForType(type).reward, round)),
       reachedEnd(false),
       waypoints(waypoints),
       currentWaypoint(std::max<size_t>(1, waypointIndex)) {

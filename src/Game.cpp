@@ -8,10 +8,10 @@
 
 namespace {
     constexpr int MAX_ROUNDS = 15;
-    constexpr float MENU_MUSIC_VOLUME = 23.f;
-    constexpr float GAMEPLAY_MUSIC_VOLUME = 100.f;
-    constexpr float VICTORY_MUSIC_VOLUME = 100.f;
-    constexpr float DEFEAT_MUSIC_VOLUME = 100.f;
+    constexpr float MENU_MUSIC_VOLUME = 34.5f;
+    constexpr float GAMEPLAY_MUSIC_VOLUME = 150.f;
+    constexpr float VICTORY_MUSIC_VOLUME = 150.f;
+    constexpr float DEFEAT_MUSIC_VOLUME = 150.f;
     constexpr float SFX_VOLUME = 18.f;
     constexpr float VOLUME_STEP = 0.1f;
 
@@ -198,7 +198,7 @@ namespace {
             {TowerType::TAQUERO, "Proyectil", "Lanza limones rapidamente.", 12, 150.f, 1.8f},
             {TowerType::ABUELITA, "Sniper/soporte", "Ataca la mas avanzada y deshipnotiza.", 60, 2000.f, 0.25f},
             {TowerType::DON_COHETES, "Area", "Cohete: radio 180, dano completo a Arcilla.", 10, 204.f, 0.65f},
-            {TowerType::ORGANILLERO, "Soporte", "+35% velocidad; Abuelita +5%; protege hipnosis.", 0, 170.f, 0.f},
+            {TowerType::ORGANILLERO, "Soporte", "+35% vel.; aturdidos +10%; Abuelita +5%.", 0, 170.f, 0.f},
             {TowerType::RASPADERO, "Control", "Hielo: ralentiza al 50% por 2s.", 8, 160.f, 1.3f}
         };
         return info;
@@ -206,13 +206,13 @@ namespace {
 
     const std::vector<GuidePinataInfo>& getGuidePinataInfo() {
         static const std::vector<GuidePinataInfo> info = {
-            {PinataType::ENGRUDO, "Engrudo", "Vida 55 + 6/ronda | Vel 88 | 8 dulces | Escapa: -1", "Basica."},
-            {PinataType::ARCILLA, "Arcilla", "Vida 150 + 6/ronda | Vel 68 | 14 dulces | Escapa: -3", "Recibe 60% dano normal; Machete 125%."},
-            {PinataType::REVELACION, "Revelacion", "Vida 220 + 6/ronda | Vel 85 | 22 dulces | Escapa: -4", "Al morir genera bebe rosa y bebe azul."},
-            {PinataType::FRUTA, "Fruta", "Vida 120 + 6/ronda | Vel 82 | 12 dulces | Escapa: -2", "Al morir ralentiza torres: radio 150, 5s."},
-            {PinataType::HIPNOTIZADORA, "Hipnotizadora", "Vida 180 + 6/ronda | Vel 78 | 16 dulces | Escapa: -5", "Radio 190. Torres afectadas fallan 90%."},
-            {PinataType::BEBE_ROSA, "Bebe rosa", "Vida 45 + 6/ronda | Vel 95 | 4 dulces | Escapa: -1", "Sale de Revelacion."},
-            {PinataType::BEBE_AZUL, "Bebe azul", "Vida 45 + 6/ronda | Vel 95 | 4 dulces | Escapa: -1", "Sale de Revelacion."}
+            {PinataType::ENGRUDO, "Engrudo", "Vida 55 + 6/ronda | Vel 97 | 8 dulces base | Escapa: -1", "Basica."},
+            {PinataType::ARCILLA, "Arcilla", "Vida 150 + 6/ronda | Vel 75 | 14 dulces base | Escapa: -3", "Recibe 60% dano normal; Machete 125%."},
+            {PinataType::REVELACION, "Revelacion", "Vida 220 + 6/ronda | Vel 94 | 22 dulces base | Escapa: -4", "Al morir genera bebe rosa y bebe azul."},
+            {PinataType::FRUTA, "Fruta", "Vida 120 + 6/ronda | Vel 90 | 12 dulces base | Escapa: -2", "Al morir ralentiza torres: radio 150, 5s."},
+            {PinataType::HIPNOTIZADORA, "Hipnotizadora", "Vida 180 + 6/ronda | Vel 86 | 16 dulces base | Escapa: -5", "Hipnosis radio 190; dura 5s al salir."},
+            {PinataType::BEBE_ROSA, "Bebe rosa", "Vida 45 + 6/ronda | Vel 105 | 4 dulces base | Escapa: -1", "Sale de Revelacion."},
+            {PinataType::BEBE_AZUL, "Bebe azul", "Vida 45 + 6/ronda | Vel 105 | 4 dulces base | Escapa: -1", "Sale de Revelacion."}
         };
         return info;
     }
@@ -237,6 +237,7 @@ Game::Game(unsigned int w, unsigned int h)
       enemiesLeftToSpawn(0),
       spawnTimer(0.f),
       spawnInterval(1.5f),
+      hypnotizerRangePenaltyTimer(0.f),
       map(w, h),
       selectedTowerType(TowerType::NINO_PALO),
       towerSelected(false),
@@ -788,13 +789,17 @@ void Game::update() {
         playerLives = 0;
         currentState = GameState::DEFEAT;
         pauseMenuVisible = false;
+        hypnotizerRangePenaltyTimer = 0.f;
+        for (auto& tower : towers) {
+            if (tower) tower->setHypnotized(false);
+        }
         towerSelected = false;
         clearTowerSelection();
         std::cout << "[GAME] Derrota" << std::endl;
         break;
     }
-    updateTowerRangeVisuals();
     updateHypnosisAuras();
+    updateTowerRangeVisuals();
     for (auto& tower : towers) {
         if (!tower) continue;
 
@@ -804,6 +809,9 @@ void Game::update() {
             for (const auto& support : towers) {
                 if (support && support->isSupportTower() && support->isInScaledRange(tower->getPosition(), supportRangeScale)) {
                     float baseBuff = (tower->getType() == TowerType::ABUELITA) ? 1.05f : 1.35f;
+                    if (tower->isAttackSlowed()) {
+                        baseBuff = std::min(baseBuff, 1.10f);
+                    }
                     fireRateMultiplier = 1.f + (baseBuff - 1.f) * support->getSupportMultiplierScale();
                     break;
                 }
@@ -873,6 +881,10 @@ void Game::update() {
         if (currentRound >= MAX_ROUNDS) {
             currentState = GameState::VICTORY;
             pauseMenuVisible = false;
+            hypnotizerRangePenaltyTimer = 0.f;
+            for (auto& tower : towers) {
+                if (tower) tower->setHypnotized(false);
+            }
             towerSelected = false;
             clearTowerSelection();
             std::cout << "[GAME] Victoria! Completaste " << MAX_ROUNDS << " rondas" << std::endl;
@@ -883,6 +895,10 @@ void Game::update() {
         currentRound++;
         currentState = GameState::ROUND_PAUSE;
         roundPreviewVisible = true;
+        hypnotizerRangePenaltyTimer = 0.f;
+        for (auto& tower : towers) {
+            if (tower) tower->setHypnotized(false);
+        }
         std::cout << "[WAVE] Oleada completada! Ronda: " << currentRound << std::endl;
     }
     break;
@@ -1391,11 +1407,13 @@ void Game::updateTowerRangeVisuals() {
 
 void Game::updateHypnosisAuras() {
     constexpr float hypnosisRadius = 190.f;
-    float supportRangeScale = getOrganilleroRangeScale();
-
-    for (auto& tower : towers) {
-        if (tower) tower->setHypnotized(false);
+    bool activeHypnotizer = hasActiveHypnotizer();
+    if (activeHypnotizer) {
+        hypnotizerRangePenaltyTimer = 5.f;
+    } else if (hypnotizerRangePenaltyTimer > 0.f) {
+        hypnotizerRangePenaltyTimer = std::max(0.f, hypnotizerRangePenaltyTimer - deltaTime);
     }
+    float supportRangeScale = getOrganilleroRangeScale();
 
     for (const auto& enemy : enemies) {
         if (!enemy || !enemy->isAlive() || enemy->getType() != PinataType::HIPNOTIZADORA) continue;
@@ -1429,7 +1447,7 @@ bool Game::hasActiveHypnotizer() const {
 }
 
 float Game::getOrganilleroRangeScale() const {
-    return hasActiveHypnotizer() ? 0.7f : 1.f;
+    return hypnotizerRangePenaltyTimer > 0.f ? 0.7f : 1.f;
 }
 
 bool Game::canEditTowers() const {
@@ -1460,6 +1478,7 @@ void Game::resetPlaySession() {
     enemiesLeftToSpawn = 0;
     spawnTimer = 0.f;
     spawnInterval = 1.5f;
+    hypnotizerRangePenaltyTimer = 0.f;
     gameSpeedMultiplier = 1.f;
     selectedTowerType = TowerType::NINO_PALO;
     towerSelected = false;
@@ -1524,6 +1543,7 @@ void Game::finishTutorial() {
     playerLives = 100;
     currentRound = 1;
     enemiesLeftToSpawn = 0;
+    hypnotizerRangePenaltyTimer = 0.f;
     pauseMenuVisible = false;
     enemies.clear();
     towers.clear();
@@ -1566,8 +1586,8 @@ void Game::updateTutorial() {
         }
     }
 
-    updateTowerRangeVisuals();
     updateHypnosisAuras();
+    updateTowerRangeVisuals();
     for (auto& tower : towers) {
         if (!tower) continue;
 
@@ -1577,6 +1597,9 @@ void Game::updateTutorial() {
             for (const auto& support : towers) {
                 if (support && support->isSupportTower() && support->isInScaledRange(tower->getPosition(), supportRangeScale)) {
                     float baseBuff = (tower->getType() == TowerType::ABUELITA) ? 1.05f : 1.35f;
+                    if (tower->isAttackSlowed()) {
+                        baseBuff = std::min(baseBuff, 1.10f);
+                    }
                     fireRateMultiplier = 1.f + (baseBuff - 1.f) * support->getSupportMultiplierScale();
                     break;
                 }
@@ -1639,6 +1662,10 @@ void Game::updateTutorial() {
 
     if (tutorialWaveActive && tutorialSpawnQueue.empty() && enemies.empty()) {
         tutorialWaveActive = false;
+        hypnotizerRangePenaltyTimer = 0.f;
+        for (auto& tower : towers) {
+            if (tower) tower->setHypnotized(false);
+        }
         if (tutorialStep == 2) {
             playerMoney = std::max(playerMoney, 320.f);
             tutorialStep = 3;
@@ -1891,6 +1918,11 @@ void Game::renderCharactersGuide() {
     pinataTitle.setFillColor(sf::Color::White);
     pinataTitle.setPosition({676.f, 112.f});
     window.draw(pinataTitle);
+
+    sf::Text rewardNote(hudFont, "Recompensas: 80% desde ronda 7, 65% desde ronda 11.", 12);
+    rewardNote.setFillColor(sf::Color(205, 205, 205));
+    rewardNote.setPosition({934.f, 120.f});
+    window.draw(rewardNote);
 
     float y = 154.f;
     for (const auto& info : getGuideTowerInfo()) {

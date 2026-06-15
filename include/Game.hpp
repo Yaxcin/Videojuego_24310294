@@ -124,6 +124,7 @@ private:
     int enemiesLeftToSpawn;
     float spawnTimer;
     float spawnInterval;
+    float hypnotizerRangePenaltyTimer;
 
     std::vector<std::shared_ptr<Entity>> entities;
     std::vector<std::shared_ptr<Pinata>> enemies;

@@ -128,7 +128,81 @@ namespace {
         return std::sqrt(diff.x * diff.x + diff.y * diff.y);
     }
 
+    bool getLateRoundOverride(int round, WavePreview& preview) {
+        switch (round) {
+            case 13:
+                preview = {40, 21, 4, 6, 5, 4};
+                return true;
+            case 14:
+                preview = {45, 23, 5, 6, 6, 5};
+                return true;
+            case 15:
+                preview = {50, 25, 5, 6, 7, 7};
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    std::vector<PinataType> getLateRoundSchedule(const WavePreview& preview) {
+        std::vector<PinataType> schedule;
+        schedule.reserve(static_cast<size_t>(preview.total));
+
+        int engrudo = preview.engrudo;
+        int arcilla = preview.arcilla;
+        int fruta = preview.fruta;
+        int revelacion = preview.revelacion;
+        int hipnotizadora = preview.hipnotizadora;
+        const std::vector<PinataType> pattern = {
+            PinataType::ENGRUDO,
+            PinataType::ARCILLA,
+            PinataType::ENGRUDO,
+            PinataType::FRUTA,
+            PinataType::ENGRUDO,
+            PinataType::REVELACION,
+            PinataType::ENGRUDO,
+            PinataType::HIPNOTIZADORA
+        };
+
+        size_t cursor = 0;
+        while (static_cast<int>(schedule.size()) < preview.total) {
+            bool placed = false;
+            for (size_t tries = 0; tries < pattern.size(); ++tries) {
+                PinataType candidate = pattern[(cursor + tries) % pattern.size()];
+                int* count = nullptr;
+                switch (candidate) {
+                    case PinataType::ENGRUDO: count = &engrudo; break;
+                    case PinataType::ARCILLA: count = &arcilla; break;
+                    case PinataType::FRUTA: count = &fruta; break;
+                    case PinataType::REVELACION: count = &revelacion; break;
+                    case PinataType::HIPNOTIZADORA: count = &hipnotizadora; break;
+                    default: break;
+                }
+
+                if (count && *count > 0) {
+                    schedule.push_back(candidate);
+                    --(*count);
+                    cursor = (cursor + tries + 1) % pattern.size();
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed) break;
+        }
+
+        return schedule;
+    }
+
     PinataType getSpawnTypeForRound(int round, int spawnedIndex) {
+        WavePreview latePreview;
+        if (getLateRoundOverride(round, latePreview)) {
+            auto schedule = getLateRoundSchedule(latePreview);
+            int spawnNumber = latePreview.total - spawnedIndex;
+            if (spawnNumber >= 0 && spawnNumber < static_cast<int>(schedule.size())) {
+                return schedule[static_cast<size_t>(spawnNumber)];
+            }
+        }
+
         if (round >= 12 && spawnedIndex % 8 == 0) return PinataType::HIPNOTIZADORA;
         if (round >= 9 && spawnedIndex % 6 == 0) return PinataType::REVELACION;
         if (round >= 6 && spawnedIndex % 5 == 0) return PinataType::FRUTA;
@@ -138,6 +212,8 @@ namespace {
     }
 
     int getEnemyCountForRound(int round) {
+        WavePreview latePreview;
+        if (getLateRoundOverride(round, latePreview)) return latePreview.total;
         return 4 + round * 2 + std::max(0, round - 5);
     }
 
@@ -150,6 +226,9 @@ namespace {
     }
 
     WavePreview getWavePreviewForRound(int round) {
+        WavePreview latePreview;
+        if (getLateRoundOverride(round, latePreview)) return latePreview;
+
         WavePreview preview;
         preview.total = getEnemyCountForRound(round);
 
@@ -207,7 +286,7 @@ namespace {
     const std::vector<GuidePinataInfo>& getGuidePinataInfo() {
         static const std::vector<GuidePinataInfo> info = {
             {PinataType::ENGRUDO, "Engrudo", "Vida 55 + 6/ronda | Vel 97 | 8 dulces base | Escapa: -1", "Basica."},
-            {PinataType::ARCILLA, "Arcilla", "Vida 150 + 6/ronda | Vel 75 | 14 dulces base | Escapa: -3", "Recibe 60% dano normal; Machete 125%."},
+            {PinataType::ARCILLA, "Arcilla", "Vida 150 + 6/ronda | Vel 75 | 14 dulces base | Escapa: -3", "Tanque: resistencia extra hasta 25% al final."},
             {PinataType::REVELACION, "Revelacion", "Vida 220 + 6/ronda | Vel 94 | 22 dulces base | Escapa: -4", "Al morir genera bebe rosa y bebe azul."},
             {PinataType::FRUTA, "Fruta", "Vida 120 + 6/ronda | Vel 90 | 12 dulces base | Escapa: -2", "Al morir ralentiza torres: radio 150, 5s."},
             {PinataType::HIPNOTIZADORA, "Hipnotizadora", "Vida 180 + 6/ronda | Vel 86 | 16 dulces base | Escapa: -5", "Hipnosis radio 190; dura 5s al salir."},

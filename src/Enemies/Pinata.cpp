@@ -27,6 +27,11 @@ namespace {
         if (round >= 7) return std::max(1, baseReward * 80 / 100);
         return baseReward;
     }
+
+    float getDamageResistanceForRound(PinataType type, int round) {
+        if (type != PinataType::ARCILLA) return 0.f;
+        return std::clamp(static_cast<float>(round - 10) * 0.05f, 0.f, 0.25f);
+    }
 }
 
 Pinata::Pinata(const std::vector<sf::Vector2f>& waypoints, PinataType type, int round)
@@ -48,6 +53,7 @@ Pinata::Pinata(
       health(getStatsForType(type).health + round * 6),
       maxHealth(getStatsForType(type).health + round * 6),
       reward(getRewardForRound(getStatsForType(type).reward, round)),
+      damageResistance(getDamageResistanceForRound(type, round)),
       reachedEnd(false),
       waypoints(waypoints),
       currentWaypoint(std::max<size_t>(1, waypointIndex)) {
@@ -61,6 +67,12 @@ Pinata::Pinata(
     shape.setOutlineThickness(2.f);
     shape.setPosition(position);
     initSprite();
+}
+
+void Pinata::takeDamage(int damage) {
+    int finalDamage = std::max(1, static_cast<int>(std::round(static_cast<float>(damage) * (1.f - damageResistance))));
+    health -= finalDamage;
+    if (health <= 0) alive = false;
 }
 
 void Pinata::moveTowardsWaypoint(float deltaTime) {

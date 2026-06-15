@@ -31,7 +31,7 @@ public:
     void render(sf::RenderWindow& window) const override;
 
     int getHealth() const { return health; }
-    void takeDamage(int damage) { health -= damage; if (health <= 0) alive = false; }
+    void takeDamage(int damage);
     void applySlow(float multiplier, float duration);
     bool isSlowed() const { return slowTimer > 0.f; }
     float getPathProgress() const;
@@ -49,6 +49,7 @@ protected:
     int health;
     int maxHealth;
     int reward;
+    float damageResistance;
     bool reachedEnd;
 
     // Waypoints del camino

@@ -140,6 +140,7 @@ private:
     void startTutorialWave(const std::vector<PinataType>& types);
     void updateTutorial();
     void renderTutorial();
+    void renderCharactersGuide();
     void renderPanel();
     void renderTowerPreview();
     void renderRoundPreview();

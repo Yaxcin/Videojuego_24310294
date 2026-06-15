@@ -4,6 +4,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cmath>
+#include <map>
 
 namespace {
     constexpr int MAX_ROUNDS = 15;
@@ -15,6 +16,22 @@ namespace {
         int fruta = 0;
         int revelacion = 0;
         int hipnotizadora = 0;
+    };
+
+    struct GuideTowerInfo {
+        TowerType type;
+        const char* role;
+        const char* special;
+        int damage;
+        float range;
+        float fireRate;
+    };
+
+    struct GuidePinataInfo {
+        PinataType type;
+        const char* name;
+        const char* stats;
+        const char* special;
     };
 
     enum class MenuAction {
@@ -167,6 +184,45 @@ namespace {
             default: return "Desconocida";
         }
     }
+
+    const char* getGuidePinataTexturePath(PinataType type) {
+        switch (type) {
+            case PinataType::ENGRUDO: return "assets/textures/pinatas/engrudo.png";
+            case PinataType::ARCILLA: return "assets/textures/pinatas/arcilla.png";
+            case PinataType::REVELACION: return "assets/textures/pinatas/revelacion.png";
+            case PinataType::FRUTA: return "assets/textures/pinatas/fruta.png";
+            case PinataType::HIPNOTIZADORA: return "assets/textures/pinatas/hipnotizadora.png";
+            case PinataType::BEBE_ROSA: return "assets/textures/pinatas/bebe_rosa.png";
+            case PinataType::BEBE_AZUL: return "assets/textures/pinatas/bebe_azul.png";
+            default: return "assets/textures/pinatas/engrudo.png";
+        }
+    }
+
+    const std::vector<GuideTowerInfo>& getGuideTowerInfo() {
+        static const std::vector<GuideTowerInfo> info = {
+            {TowerType::NINO_PALO, "Basico", "Barato. Dano directo.", 30, 125.f, 1.25f},
+            {TowerType::VIEJO_MACHETE, "Anti-arcilla", "Arcilla recibe 125% de su dano.", 35, 90.f, 0.8f},
+            {TowerType::TAQUERO, "Proyectil", "Lanza limones rapidamente.", 12, 150.f, 1.8f},
+            {TowerType::ABUELITA, "Sniper/soporte", "Ataca la mas avanzada y deshipnotiza.", 60, 2000.f, 0.25f},
+            {TowerType::DON_COHETES, "Area", "Cohete: radio 180, dano completo a Arcilla.", 10, 204.f, 0.65f},
+            {TowerType::ORGANILLERO, "Soporte", "+35% velocidad; Abuelita +5%; protege hipnosis.", 0, 170.f, 0.f},
+            {TowerType::RASPADERO, "Control", "Hielo: ralentiza al 50% por 2s.", 8, 160.f, 1.3f}
+        };
+        return info;
+    }
+
+    const std::vector<GuidePinataInfo>& getGuidePinataInfo() {
+        static const std::vector<GuidePinataInfo> info = {
+            {PinataType::ENGRUDO, "Engrudo", "Vida 55 + 6/ronda | Vel 88 | $8 | Escapa: -1", "Basica."},
+            {PinataType::ARCILLA, "Arcilla", "Vida 150 + 6/ronda | Vel 68 | $14 | Escapa: -3", "Recibe 60% dano normal; Machete 125%."},
+            {PinataType::REVELACION, "Revelacion", "Vida 220 + 6/ronda | Vel 85 | $22 | Escapa: -4", "Al morir genera bebe rosa y bebe azul."},
+            {PinataType::FRUTA, "Fruta", "Vida 120 + 6/ronda | Vel 82 | $12 | Escapa: -2", "Al morir ralentiza torres: radio 150, 5s."},
+            {PinataType::HIPNOTIZADORA, "Hipnotizadora", "Vida 180 + 6/ronda | Vel 78 | $16 | Escapa: -5", "Radio 190. Torres afectadas fallan 90%."},
+            {PinataType::BEBE_ROSA, "Bebe rosa", "Vida 45 + 6/ronda | Vel 95 | $4 | Escapa: -1", "Sale de Revelacion."},
+            {PinataType::BEBE_AZUL, "Bebe azul", "Vida 45 + 6/ronda | Vel 95 | $4 | Escapa: -1", "Sale de Revelacion."}
+        };
+        return info;
+    }
 }
 
 Game::Game(unsigned int w, unsigned int h) 
@@ -241,6 +297,12 @@ void Game::handleEvents() {
             else if (keyEvent->code == sf::Keyboard::Key::Num1) {
                 currentState = GameState::MENU;
                 std::cout << "[STATE] MENU" << std::endl;
+            }
+            else if (keyEvent->code == sf::Keyboard::Key::Backspace) {
+                if (currentState == GameState::CHARACTERS) {
+                    currentState = GameState::MENU;
+                    std::cout << "[STATE] MENU" << std::endl;
+                }
             }
             else if (keyEvent->code == sf::Keyboard::Key::Num2) {
                 currentState = GameState::ROUND_ACTIVE;
@@ -360,7 +422,8 @@ void Game::handleEvents() {
                 std::cout << "[MENU] Iniciar fiesta" << std::endl;
                 break;
             case MenuAction::Characters:
-                std::cout << "[MENU] Personajes aun no implementado" << std::endl;
+                currentState = GameState::CHARACTERS;
+                std::cout << "[MENU] Personajes y bestiario" << std::endl;
                 break;
             case MenuAction::Options:
                 std::cout << "[MENU] Opciones aun no implementadas" << std::endl;
@@ -370,6 +433,15 @@ void Game::handleEvents() {
                 break;
             case MenuAction::None:
                 break;
+        }
+        return;
+    }
+
+    if (currentState == GameState::CHARACTERS) {
+        sf::FloatRect backButton({24.f, 24.f}, {130.f, 42.f});
+        if (mouseEvent->button == sf::Mouse::Button::Left && backButton.contains({mx, my})) {
+            currentState = GameState::MENU;
+            std::cout << "[STATE] MENU" << std::endl;
         }
         return;
     }
@@ -619,6 +691,12 @@ void Game::render() {
             window.draw(hover);
         }
 
+        window.display();
+        return;
+    }
+
+    if (currentState == GameState::CHARACTERS) {
+        renderCharactersGuide();
         window.display();
         return;
     }
@@ -1492,6 +1570,154 @@ void Game::renderTutorial() {
     }
 }
 
+void Game::renderCharactersGuide() {
+    window.clear(sf::Color(18, 20, 22));
+
+    sf::RectangleShape topBar({static_cast<float>(width), 82.f});
+    topBar.setFillColor(sf::Color(34, 30, 28));
+    window.draw(topBar);
+
+    sf::RectangleShape backButton({130.f, 42.f});
+    backButton.setPosition({24.f, 24.f});
+    backButton.setFillColor(sf::Color(55, 55, 55));
+    backButton.setOutlineColor(sf::Color(255, 230, 90, 180));
+    backButton.setOutlineThickness(2.f);
+    window.draw(backButton);
+
+    sf::Text backText(hudFont, "VOLVER", 18);
+    backText.setFillColor(sf::Color::White);
+    backText.setPosition({52.f, 34.f});
+    window.draw(backText);
+
+    sf::Text title(hudFont, "Personajes y Bestiario", 32);
+    title.setFillColor(sf::Color(255, 230, 90));
+    title.setPosition({190.f, 24.f});
+    window.draw(title);
+
+    sf::Text hint(hudFont, "Backspace o boton Volver para regresar al menu", 17);
+    hint.setFillColor(sf::Color(210, 210, 210));
+    hint.setPosition({760.f, 36.f});
+    window.draw(hint);
+
+    sf::RectangleShape leftPanel({600.f, 604.f});
+    leftPanel.setPosition({24.f, 96.f});
+    leftPanel.setFillColor(sf::Color(28, 30, 32));
+    leftPanel.setOutlineColor(sf::Color(90, 90, 90));
+    leftPanel.setOutlineThickness(1.f);
+    window.draw(leftPanel);
+
+    sf::RectangleShape rightPanel({600.f, 604.f});
+    rightPanel.setPosition({656.f, 96.f});
+    rightPanel.setFillColor(sf::Color(28, 30, 32));
+    rightPanel.setOutlineColor(sf::Color(90, 90, 90));
+    rightPanel.setOutlineThickness(1.f);
+    window.draw(rightPanel);
+
+    sf::Text towerTitle(hudFont, "Personajes", 25);
+    towerTitle.setFillColor(sf::Color::White);
+    towerTitle.setPosition({44.f, 112.f});
+    window.draw(towerTitle);
+
+    sf::Text pinataTitle(hudFont, "Bestiario de pinatas", 25);
+    pinataTitle.setFillColor(sf::Color::White);
+    pinataTitle.setPosition({676.f, 112.f});
+    window.draw(pinataTitle);
+
+    float y = 154.f;
+    for (const auto& info : getGuideTowerInfo()) {
+        sf::RectangleShape row({560.f, 66.f});
+        row.setPosition({44.f, y - 6.f});
+        row.setFillColor(sf::Color(40, 42, 44));
+        window.draw(row);
+
+        sf::Texture* tex = TextureManager::getInstance().getTowerTexture(info.type);
+        if (tex) {
+            sf::Sprite sprite(*tex);
+            sprite.setOrigin({32.f, 32.f});
+            sprite.setPosition({76.f, y + 28.f});
+            sprite.setScale({0.72f, 0.72f});
+            window.draw(sprite);
+        }
+
+        sf::Text name(hudFont, getTowerName(info.type), 17);
+        name.setFillColor(sf::Color(255, 230, 90));
+        name.setPosition({112.f, y});
+        window.draw(name);
+
+        std::ostringstream stat;
+        stat << "$" << getTowerCost(info.type)
+             << " | Lim " << getTowerLimit(info.type)
+             << " | Dano " << info.damage
+             << " | Rango " << static_cast<int>(info.range);
+        if (info.fireRate > 0.f) {
+            stat << " | " << info.fireRate << "/s";
+        } else {
+            stat << " | soporte";
+        }
+
+        sf::Text stats(hudFont, stat.str(), 14);
+        stats.setFillColor(sf::Color(220, 220, 220));
+        stats.setPosition({112.f, y + 23.f});
+        window.draw(stats);
+
+        std::string specialText = std::string(info.role) + ": " + info.special;
+        sf::Text special(hudFont, specialText, 13);
+        special.setFillColor(sf::Color(180, 210, 255));
+        special.setPosition({112.f, y + 43.f});
+        window.draw(special);
+
+        y += 76.f;
+    }
+
+    static std::map<PinataType, std::shared_ptr<sf::Texture>> pinataGuideTextures;
+
+    y = 154.f;
+    for (const auto& info : getGuidePinataInfo()) {
+        sf::RectangleShape row({560.f, 66.f});
+        row.setPosition({676.f, y - 6.f});
+        row.setFillColor(sf::Color(40, 42, 44));
+        window.draw(row);
+
+        auto textureIt = pinataGuideTextures.find(info.type);
+        if (textureIt == pinataGuideTextures.end()) {
+            auto texture = std::make_shared<sf::Texture>();
+            if (texture->loadFromFile(getGuidePinataTexturePath(info.type))) {
+                textureIt = pinataGuideTextures.emplace(info.type, texture).first;
+            }
+        }
+
+        if (textureIt != pinataGuideTextures.end()) {
+            sf::Sprite sprite(*textureIt->second);
+            auto size = textureIt->second->getSize();
+            sprite.setOrigin({static_cast<float>(size.x) / 2.f, static_cast<float>(size.y) / 2.f});
+            sprite.setPosition({706.f, y + 28.f});
+            float maxDimension = static_cast<float>(std::max(size.x, size.y));
+            if (maxDimension > 0.f) {
+                float scale = 44.f / maxDimension;
+                sprite.setScale({scale, scale});
+            }
+            window.draw(sprite);
+        }
+
+        sf::Text name(hudFont, info.name, 17);
+        name.setFillColor(sf::Color(255, 230, 90));
+        name.setPosition({734.f, y});
+        window.draw(name);
+
+        sf::Text stats(hudFont, info.stats, 13);
+        stats.setFillColor(sf::Color(220, 220, 220));
+        stats.setPosition({734.f, y + 23.f});
+        window.draw(stats);
+
+        sf::Text special(hudFont, info.special, 13);
+        special.setFillColor(sf::Color(255, 190, 170));
+        special.setPosition({734.f, y + 43.f});
+        window.draw(special);
+
+        y += 76.f;
+    }
+}
+
 void Game::renderPanel() {
     float mapWidth = static_cast<float>(width) - PANEL_WIDTH;
 
@@ -1662,6 +1888,7 @@ void Game::updateDebugInfo() {
     oss << "State: ";
     switch (currentState) {
         case GameState::MENU: oss << "MENU"; break;
+        case GameState::CHARACTERS: oss << "CHARACTERS"; break;
         case GameState::TUTORIAL: oss << "TUTORIAL"; break;
         case GameState::ROUND_ACTIVE: oss << "ROUND_ACTIVE"; break;
         case GameState::ROUND_PAUSE: oss << "ROUND_PAUSE"; break;

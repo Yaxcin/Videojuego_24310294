@@ -127,8 +127,9 @@ const char* Pinata::getTexturePath() const {
         case PinataType::HIPNOTIZADORA:
             return "assets/textures/pinatas/hipnotizadora.png";
         case PinataType::BEBE_ROSA:
+            return "assets/textures/pinatas/bebe_rosa.png";
         case PinataType::BEBE_AZUL:
-            return "assets/textures/pinatas/revelacion.png";
+            return "assets/textures/pinatas/bebe_azul.png";
         default:
             return "assets/textures/pinatas/engrudo.png";
     }
@@ -148,9 +149,6 @@ void Pinata::initSprite() {
         sprite->setScale({scale, scale});
     }
 
-    if (type == PinataType::BEBE_ROSA || type == PinataType::BEBE_AZUL) {
-        sprite->setColor(getBaseColor());
-    }
 }
 
 void Pinata::applyVisualColor(const sf::Color& color) {
@@ -159,8 +157,6 @@ void Pinata::applyVisualColor(const sf::Color& color) {
 
     if (slowTimer > 0.f) {
         sprite->setColor(sf::Color(130, 215, 255));
-    } else if (type == PinataType::BEBE_ROSA || type == PinataType::BEBE_AZUL) {
-        sprite->setColor(getBaseColor());
     } else {
         sprite->setColor(sf::Color::White);
     }

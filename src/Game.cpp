@@ -8,6 +8,10 @@
 
 namespace {
     constexpr int MAX_ROUNDS = 15;
+    constexpr float MENU_MUSIC_VOLUME = 8.f;
+    constexpr float GAMEPLAY_MUSIC_VOLUME = 35.f;
+    constexpr float VICTORY_MUSIC_VOLUME = 35.f;
+    constexpr float DEFEAT_MUSIC_VOLUME = 35.f;
 
     struct WavePreview {
         int total = 0;
@@ -309,10 +313,10 @@ void Game::loadMusic() {
     victoryMusic.setLooping(false);
     defeatMusic.setLooping(false);
 
-    menuMusic.setVolume(45.f);
-    gameplayMusic.setVolume(45.f);
-    victoryMusic.setVolume(65.f);
-    defeatMusic.setVolume(65.f);
+    menuMusic.setVolume(MENU_MUSIC_VOLUME);
+    gameplayMusic.setVolume(GAMEPLAY_MUSIC_VOLUME);
+    victoryMusic.setVolume(VICTORY_MUSIC_VOLUME);
+    defeatMusic.setVolume(DEFEAT_MUSIC_VOLUME);
 }
 
 void Game::updateMusic() {
@@ -352,16 +356,28 @@ void Game::playMusic(MusicTrack track) {
 
     switch (track) {
         case MusicTrack::Menu:
-            if (menuMusicLoaded) menuMusic.play();
+            if (menuMusicLoaded) {
+                menuMusic.setVolume(MENU_MUSIC_VOLUME);
+                menuMusic.play();
+            }
             break;
         case MusicTrack::Gameplay:
-            if (gameplayMusicLoaded) gameplayMusic.play();
+            if (gameplayMusicLoaded) {
+                gameplayMusic.setVolume(GAMEPLAY_MUSIC_VOLUME);
+                gameplayMusic.play();
+            }
             break;
         case MusicTrack::Victory:
-            if (victoryMusicLoaded) victoryMusic.play();
+            if (victoryMusicLoaded) {
+                victoryMusic.setVolume(VICTORY_MUSIC_VOLUME);
+                victoryMusic.play();
+            }
             break;
         case MusicTrack::Defeat:
-            if (defeatMusicLoaded) defeatMusic.play();
+            if (defeatMusicLoaded) {
+                defeatMusic.setVolume(DEFEAT_MUSIC_VOLUME);
+                defeatMusic.play();
+            }
             break;
         case MusicTrack::None:
             break;

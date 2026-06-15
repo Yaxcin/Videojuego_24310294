@@ -4,7 +4,7 @@ SRC_DIR := src
 BIN_DIR := bin
 INCLUDE_DIR := include
 
-SFML := -lsfml-graphics -lsfml-window -lsfml-system
+SFML := -lsfml-graphics -lsfml-window -lsfml-audio -lsfml-system
 
 CXX := g++
 CXXFLAGS := -std=c++17 -I$(INCLUDE_DIR) -Wall -Wextra -MMD -MP

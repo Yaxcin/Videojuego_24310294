@@ -3,6 +3,7 @@
 
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
+#include <SFML/Audio.hpp>
 #include "GameState.hpp"
 #include <vector>
 #include <memory>
@@ -73,6 +74,14 @@ public:
     void setState(GameState newState) { currentState = newState; }
 
 private:
+    enum class MusicTrack {
+        None,
+        Menu,
+        Gameplay,
+        Victory,
+        Defeat
+    };
+
     unsigned int width;
     unsigned int height;
     sf::RenderWindow window;
@@ -81,6 +90,15 @@ private:
     float deltaTime;
     sf::Clock gameClock;
     float gameSpeedMultiplier;
+    MusicTrack currentMusicTrack;
+    sf::Music menuMusic;
+    sf::Music gameplayMusic;
+    sf::Music victoryMusic;
+    sf::Music defeatMusic;
+    bool menuMusicLoaded;
+    bool gameplayMusicLoaded;
+    bool victoryMusicLoaded;
+    bool defeatMusicLoaded;
 
     float playerMoney;
     int playerLives;
@@ -113,6 +131,9 @@ private:
     void handleEvents();
     void update();
     void render();
+    void loadMusic();
+    void updateMusic();
+    void playMusic(MusicTrack track);
     void updateProjectiles();
     void renderProjectiles();
     void updateDebugInfo();

@@ -231,6 +231,11 @@ Game::Game(unsigned int w, unsigned int h)
       currentState(GameState::MENU),
       deltaTime(0.0f),
       gameSpeedMultiplier(1.f),
+      currentMusicTrack(MusicTrack::None),
+      menuMusicLoaded(false),
+      gameplayMusicLoaded(false),
+      victoryMusicLoaded(false),
+      defeatMusicLoaded(false),
       playerMoney(150.0f),
       playerLives(100),
       currentRound(1),
@@ -270,6 +275,8 @@ Game::Game(unsigned int w, unsigned int h)
     if (!iceProjectileTexture.loadFromFile("assets/textures/projectiles/HIELO_RASPADO.png")) {
         std::cerr << "[TEXTURE] No se pudo cargar HIELO_RASPADO.png" << std::endl;
     }
+    loadMusic();
+    updateMusic();
     std::cout << "[GAME] Initialized: "     << width << "x" << height << std::endl;
 }
 
@@ -280,9 +287,85 @@ void Game::run() {
         handleEvents();
         deltaTime = rawDeltaTime * ((currentState == GameState::ROUND_ACTIVE) ? gameSpeedMultiplier : 1.f);
         update();
+        updateMusic();
         render();
     }
     std::cout << "[GAME] Main loop ended." << std::endl;
+}
+
+void Game::loadMusic() {
+    menuMusicLoaded = menuMusic.openFromFile("assets/sounds/music/menu.ogg");
+    gameplayMusicLoaded = gameplayMusic.openFromFile("assets/sounds/music/gameplay.ogg");
+    victoryMusicLoaded = victoryMusic.openFromFile("assets/sounds/music/victory.ogg");
+    defeatMusicLoaded = defeatMusic.openFromFile("assets/sounds/music/defeat.ogg");
+
+    if (!menuMusicLoaded) std::cerr << "[AUDIO] No se pudo cargar menu.ogg" << std::endl;
+    if (!gameplayMusicLoaded) std::cerr << "[AUDIO] No se pudo cargar gameplay.ogg" << std::endl;
+    if (!victoryMusicLoaded) std::cerr << "[AUDIO] No se pudo cargar victory.ogg" << std::endl;
+    if (!defeatMusicLoaded) std::cerr << "[AUDIO] No se pudo cargar defeat.ogg" << std::endl;
+
+    menuMusic.setLooping(true);
+    gameplayMusic.setLooping(true);
+    victoryMusic.setLooping(false);
+    defeatMusic.setLooping(false);
+
+    menuMusic.setVolume(45.f);
+    gameplayMusic.setVolume(45.f);
+    victoryMusic.setVolume(65.f);
+    defeatMusic.setVolume(65.f);
+}
+
+void Game::updateMusic() {
+    MusicTrack desiredTrack = MusicTrack::None;
+
+    switch (currentState) {
+        case GameState::MENU:
+        case GameState::CHARACTERS:
+            desiredTrack = MusicTrack::Menu;
+            break;
+        case GameState::TUTORIAL:
+        case GameState::ROUND_ACTIVE:
+        case GameState::ROUND_PAUSE:
+        case GameState::COLLECTING_COINS:
+            desiredTrack = MusicTrack::Gameplay;
+            break;
+        case GameState::VICTORY:
+            desiredTrack = MusicTrack::Victory;
+            break;
+        case GameState::DEFEAT:
+            desiredTrack = MusicTrack::Defeat;
+            break;
+    }
+
+    playMusic(desiredTrack);
+}
+
+void Game::playMusic(MusicTrack track) {
+    if (currentMusicTrack == track) return;
+
+    menuMusic.stop();
+    gameplayMusic.stop();
+    victoryMusic.stop();
+    defeatMusic.stop();
+
+    currentMusicTrack = track;
+
+    switch (track) {
+        case MusicTrack::Menu:
+            if (menuMusicLoaded) menuMusic.play();
+            break;
+        case MusicTrack::Gameplay:
+            if (gameplayMusicLoaded) gameplayMusic.play();
+            break;
+        case MusicTrack::Victory:
+            if (victoryMusicLoaded) victoryMusic.play();
+            break;
+        case MusicTrack::Defeat:
+            if (defeatMusicLoaded) defeatMusic.play();
+            break;
+        case MusicTrack::None:
+            break;
+    }
 }
 
 void Game::handleEvents() {

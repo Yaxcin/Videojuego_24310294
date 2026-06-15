@@ -5,6 +5,7 @@
 enum class GameState {
     MENU,                 // Pantalla inicial
     CHARACTERS,           // Guia de personajes y bestiario
+    OPTIONS,              // Ajustes de audio y controles
     TUTORIAL,             // Tutorial interactivo previo a la primera ronda
     ROUND_ACTIVE,         // Ola en progreso, torres atacando
     ROUND_PAUSE,          // Pausa entre olas, comprar/vender torres

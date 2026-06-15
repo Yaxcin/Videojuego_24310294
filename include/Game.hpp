@@ -8,6 +8,7 @@
 #include <vector>
 #include <memory>
 #include <optional>
+#include <map>
 #include "Map.hpp"
 #include "Enemies/Pinata.hpp"
 #include "Towers/Tower.hpp"
@@ -82,6 +83,19 @@ private:
         Defeat
     };
 
+    enum class SfxType {
+        UiClick,
+        Select,
+        Place,
+        Invalid,
+        WaveStart,
+        Hit,
+        IceHit,
+        Explosion,
+        Reward,
+        LifeLost
+    };
+
     unsigned int width;
     unsigned int height;
     sf::RenderWindow window;
@@ -90,6 +104,8 @@ private:
     float deltaTime;
     sf::Clock gameClock;
     float gameSpeedMultiplier;
+    float musicVolumeScale;
+    float sfxVolumeScale;
     MusicTrack currentMusicTrack;
     sf::Music menuMusic;
     sf::Music gameplayMusic;
@@ -99,6 +115,8 @@ private:
     bool gameplayMusicLoaded;
     bool victoryMusicLoaded;
     bool defeatMusicLoaded;
+    std::map<SfxType, sf::SoundBuffer> sfxBuffers;
+    std::vector<std::unique_ptr<sf::Sound>> activeSounds;
 
     float playerMoney;
     int playerLives;
@@ -132,8 +150,14 @@ private:
     void update();
     void render();
     void loadMusic();
+    void applyMusicVolumes();
     void updateMusic();
     void playMusic(MusicTrack track);
+    void loadSfx();
+    void playSfx(SfxType type);
+    void cleanupSfx();
+    void adjustMusicVolume(float delta);
+    void adjustSfxVolume(float delta);
     void updateProjectiles();
     void renderProjectiles();
     void updateDebugInfo();
@@ -162,6 +186,7 @@ private:
     void updateTutorial();
     void renderTutorial();
     void renderCharactersGuide();
+    void renderOptions();
     void renderPanel();
     void renderTowerPreview();
     void renderRoundPreview();

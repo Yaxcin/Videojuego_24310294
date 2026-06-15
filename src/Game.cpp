@@ -8,10 +8,12 @@
 
 namespace {
     constexpr int MAX_ROUNDS = 15;
-    constexpr float MENU_MUSIC_VOLUME = 8.f;
-    constexpr float GAMEPLAY_MUSIC_VOLUME = 35.f;
-    constexpr float VICTORY_MUSIC_VOLUME = 35.f;
-    constexpr float DEFEAT_MUSIC_VOLUME = 35.f;
+    constexpr float MENU_MUSIC_VOLUME = 13.f;
+    constexpr float GAMEPLAY_MUSIC_VOLUME = 57.f;
+    constexpr float VICTORY_MUSIC_VOLUME = 57.f;
+    constexpr float DEFEAT_MUSIC_VOLUME = 57.f;
+    constexpr float SFX_VOLUME = 18.f;
+    constexpr float VOLUME_STEP = 0.1f;
 
     struct WavePreview {
         int total = 0;
@@ -235,6 +237,8 @@ Game::Game(unsigned int w, unsigned int h)
       currentState(GameState::MENU),
       deltaTime(0.0f),
       gameSpeedMultiplier(1.f),
+      musicVolumeScale(1.f),
+      sfxVolumeScale(1.f),
       currentMusicTrack(MusicTrack::None),
       menuMusicLoaded(false),
       gameplayMusicLoaded(false),
@@ -280,6 +284,7 @@ Game::Game(unsigned int w, unsigned int h)
         std::cerr << "[TEXTURE] No se pudo cargar HIELO_RASPADO.png" << std::endl;
     }
     loadMusic();
+    loadSfx();
     updateMusic();
     std::cout << "[GAME] Initialized: "     << width << "x" << height << std::endl;
 }
@@ -292,6 +297,7 @@ void Game::run() {
         deltaTime = rawDeltaTime * ((currentState == GameState::ROUND_ACTIVE) ? gameSpeedMultiplier : 1.f);
         update();
         updateMusic();
+        cleanupSfx();
         render();
     }
     std::cout << "[GAME] Main loop ended." << std::endl;
@@ -313,10 +319,14 @@ void Game::loadMusic() {
     victoryMusic.setLooping(false);
     defeatMusic.setLooping(false);
 
-    menuMusic.setVolume(MENU_MUSIC_VOLUME);
-    gameplayMusic.setVolume(GAMEPLAY_MUSIC_VOLUME);
-    victoryMusic.setVolume(VICTORY_MUSIC_VOLUME);
-    defeatMusic.setVolume(DEFEAT_MUSIC_VOLUME);
+    applyMusicVolumes();
+}
+
+void Game::applyMusicVolumes() {
+    menuMusic.setVolume(MENU_MUSIC_VOLUME * musicVolumeScale);
+    gameplayMusic.setVolume(GAMEPLAY_MUSIC_VOLUME * musicVolumeScale);
+    victoryMusic.setVolume(VICTORY_MUSIC_VOLUME * musicVolumeScale);
+    defeatMusic.setVolume(DEFEAT_MUSIC_VOLUME * musicVolumeScale);
 }
 
 void Game::updateMusic() {
@@ -325,6 +335,7 @@ void Game::updateMusic() {
     switch (currentState) {
         case GameState::MENU:
         case GameState::CHARACTERS:
+        case GameState::OPTIONS:
             desiredTrack = MusicTrack::Menu;
             break;
         case GameState::TUTORIAL:
@@ -357,31 +368,88 @@ void Game::playMusic(MusicTrack track) {
     switch (track) {
         case MusicTrack::Menu:
             if (menuMusicLoaded) {
-                menuMusic.setVolume(MENU_MUSIC_VOLUME);
+                menuMusic.setVolume(MENU_MUSIC_VOLUME * musicVolumeScale);
                 menuMusic.play();
             }
             break;
         case MusicTrack::Gameplay:
             if (gameplayMusicLoaded) {
-                gameplayMusic.setVolume(GAMEPLAY_MUSIC_VOLUME);
+                gameplayMusic.setVolume(GAMEPLAY_MUSIC_VOLUME * musicVolumeScale);
                 gameplayMusic.play();
             }
             break;
         case MusicTrack::Victory:
             if (victoryMusicLoaded) {
-                victoryMusic.setVolume(VICTORY_MUSIC_VOLUME);
+                victoryMusic.setVolume(VICTORY_MUSIC_VOLUME * musicVolumeScale);
                 victoryMusic.play();
             }
             break;
         case MusicTrack::Defeat:
             if (defeatMusicLoaded) {
-                defeatMusic.setVolume(DEFEAT_MUSIC_VOLUME);
+                defeatMusic.setVolume(DEFEAT_MUSIC_VOLUME * musicVolumeScale);
                 defeatMusic.play();
             }
             break;
         case MusicTrack::None:
             break;
     }
+}
+
+void Game::loadSfx() {
+    const std::vector<std::pair<SfxType, const char*>> files = {
+        {SfxType::UiClick, "assets/sounds/sfx/ui_click.wav"},
+        {SfxType::Select, "assets/sounds/sfx/select.wav"},
+        {SfxType::Place, "assets/sounds/sfx/place.wav"},
+        {SfxType::Invalid, "assets/sounds/sfx/invalid.wav"},
+        {SfxType::WaveStart, "assets/sounds/sfx/wave_start.wav"},
+        {SfxType::Hit, "assets/sounds/sfx/hit.wav"},
+        {SfxType::IceHit, "assets/sounds/sfx/ice_hit.wav"},
+        {SfxType::Explosion, "assets/sounds/sfx/explosion.wav"},
+        {SfxType::Reward, "assets/sounds/sfx/reward.wav"},
+        {SfxType::LifeLost, "assets/sounds/sfx/life_lost.wav"}
+    };
+
+    for (const auto& [type, path] : files) {
+        sf::SoundBuffer buffer;
+        if (buffer.loadFromFile(path)) {
+            sfxBuffers[type] = buffer;
+        } else {
+            std::cerr << "[AUDIO] No se pudo cargar " << path << std::endl;
+        }
+    }
+}
+
+void Game::playSfx(SfxType type) {
+    auto found = sfxBuffers.find(type);
+    if (found == sfxBuffers.end()) return;
+
+    auto sound = std::make_unique<sf::Sound>(found->second);
+    sound->setVolume(SFX_VOLUME * sfxVolumeScale);
+    sound->play();
+    activeSounds.push_back(std::move(sound));
+}
+
+void Game::cleanupSfx() {
+    activeSounds.erase(
+        std::remove_if(activeSounds.begin(), activeSounds.end(),
+            [](const std::unique_ptr<sf::Sound>& sound) {
+                return !sound || sound->getStatus() == sf::SoundSource::Status::Stopped;
+            }),
+        activeSounds.end()
+    );
+}
+
+void Game::adjustMusicVolume(float delta) {
+    musicVolumeScale = std::clamp(musicVolumeScale + delta, 0.f, 1.5f);
+    applyMusicVolumes();
+    playSfx(SfxType::UiClick);
+    std::cout << "[OPTIONS] Musica: " << static_cast<int>(musicVolumeScale * 100.f) << "%" << std::endl;
+}
+
+void Game::adjustSfxVolume(float delta) {
+    sfxVolumeScale = std::clamp(sfxVolumeScale + delta, 0.f, 1.5f);
+    playSfx(SfxType::UiClick);
+    std::cout << "[OPTIONS] Efectos: " << static_cast<int>(sfxVolumeScale * 100.f) << "%" << std::endl;
 }
 
 void Game::handleEvents() {
@@ -398,7 +466,8 @@ void Game::handleEvents() {
                 std::cout << "[STATE] MENU" << std::endl;
             }
             else if (keyEvent->code == sf::Keyboard::Key::Backspace) {
-                if (currentState == GameState::CHARACTERS) {
+                if (currentState == GameState::CHARACTERS || currentState == GameState::OPTIONS) {
+                    playSfx(SfxType::UiClick);
                     currentState = GameState::MENU;
                     std::cout << "[STATE] MENU" << std::endl;
                 }
@@ -433,6 +502,7 @@ void Game::handleEvents() {
                 std::cout << "[DEBUG] -1 Life. Total: " << playerLives << std::endl;
             }
             else if (keyEvent->code == sf::Keyboard::Key::Tab) {
+                playSfx(SfxType::UiClick);
                 toggleGameSpeed();
             }
             else if (keyEvent->code == sf::Keyboard::Key::E) {
@@ -457,49 +527,61 @@ void Game::handleEvents() {
             else if (keyEvent->code == sf::Keyboard::Key::Space) {
                 if (currentState == GameState::TUTORIAL) {
                     if (tutorialChoiceVisible) {
+                        playSfx(SfxType::UiClick);
                         skipTutorial();
                     } else if (tutorialWaveActive) {
+                        playSfx(SfxType::Invalid);
                         std::cout << "[TUTORIAL] Termina la mini oleada primero" << std::endl;
                     } else if (tutorialStep == 2) {
+                        playSfx(SfxType::WaveStart);
                         startTutorialWave({
                             PinataType::ENGRUDO,
                             PinataType::ENGRUDO
                         });
                     } else if (tutorialStep == 5) {
+                        playSfx(SfxType::WaveStart);
                         startTutorialWave({
                             PinataType::ARCILLA,
                             PinataType::FRUTA
                         });
                     } else if (tutorialStep == 7) {
+                        playSfx(SfxType::WaveStart);
                         startTutorialWave({
                             PinataType::ARCILLA,
                             PinataType::REVELACION
                         });
                     } else if (tutorialStep == 9) {
+                        playSfx(SfxType::WaveStart);
                         startTutorialWave({
                             PinataType::HIPNOTIZADORA,
                             PinataType::ENGRUDO,
                             PinataType::ENGRUDO
                         });
                     } else if (tutorialStep >= 10) {
+                        playSfx(SfxType::UiClick);
                         finishTutorial();
                     }
                 } else if (currentState == GameState::ROUND_PAUSE) {
                     if (roundPreviewVisible) {
+                        playSfx(SfxType::UiClick);
                         roundPreviewVisible = false;
                         std::cout << "[UI] Resumen cerrado. Puedes colocar torres" << std::endl;
                     } else {
+                        playSfx(SfxType::WaveStart);
                         startWave();
                     }
                 } else if (currentState == GameState::MENU) {
+                    playSfx(SfxType::UiClick);
                     enterPlayFromMenu();
                 }
             }
             else if (keyEvent->code == sf::Keyboard::Key::Enter) {
                 if (currentState == GameState::TUTORIAL) {
                     if (tutorialChoiceVisible) {
+                        playSfx(SfxType::UiClick);
                         startTutorial();
                     } else if (!tutorialWaveActive && tutorialStep == 3) {
+                        playSfx(SfxType::UiClick);
                         tutorialStep = 4;
                     }
                 }
@@ -517,17 +599,22 @@ void Game::handleEvents() {
         MenuAction action = getMenuActionAt(menuX, menuY);
         switch (action) {
             case MenuAction::Play:
+                playSfx(SfxType::UiClick);
                 enterPlayFromMenu();
                 std::cout << "[MENU] Iniciar fiesta" << std::endl;
                 break;
             case MenuAction::Characters:
+                playSfx(SfxType::UiClick);
                 currentState = GameState::CHARACTERS;
                 std::cout << "[MENU] Personajes y bestiario" << std::endl;
                 break;
             case MenuAction::Options:
-                std::cout << "[MENU] Opciones aun no implementadas" << std::endl;
+                playSfx(SfxType::UiClick);
+                currentState = GameState::OPTIONS;
+                std::cout << "[MENU] Opciones" << std::endl;
                 break;
             case MenuAction::Exit:
+                playSfx(SfxType::UiClick);
                 window.close();
                 break;
             case MenuAction::None:
@@ -539,8 +626,34 @@ void Game::handleEvents() {
     if (currentState == GameState::CHARACTERS) {
         sf::FloatRect backButton({24.f, 24.f}, {130.f, 42.f});
         if (mouseEvent->button == sf::Mouse::Button::Left && backButton.contains({mx, my})) {
+            playSfx(SfxType::UiClick);
             currentState = GameState::MENU;
             std::cout << "[STATE] MENU" << std::endl;
+        }
+        return;
+    }
+
+    if (currentState == GameState::OPTIONS) {
+        if (mouseEvent->button != sf::Mouse::Button::Left) return;
+
+        sf::FloatRect backButton({24.f, 24.f}, {130.f, 42.f});
+        sf::FloatRect musicMinus({420.f, 175.f}, {52.f, 42.f});
+        sf::FloatRect musicPlus({602.f, 175.f}, {52.f, 42.f});
+        sf::FloatRect sfxMinus({420.f, 245.f}, {52.f, 42.f});
+        sf::FloatRect sfxPlus({602.f, 245.f}, {52.f, 42.f});
+
+        if (backButton.contains({mx, my})) {
+            playSfx(SfxType::UiClick);
+            currentState = GameState::MENU;
+            std::cout << "[STATE] MENU" << std::endl;
+        } else if (musicMinus.contains({mx, my})) {
+            adjustMusicVolume(-VOLUME_STEP);
+        } else if (musicPlus.contains({mx, my})) {
+            adjustMusicVolume(VOLUME_STEP);
+        } else if (sfxMinus.contains({mx, my})) {
+            adjustSfxVolume(-VOLUME_STEP);
+        } else if (sfxPlus.contains({mx, my})) {
+            adjustSfxVolume(VOLUME_STEP);
         }
         return;
     }
@@ -548,6 +661,7 @@ void Game::handleEvents() {
     float mapWidth = static_cast<float>(width) - PANEL_WIDTH;
             bool editTowers = canEditTowers();
             if (mouseEvent->button == sf::Mouse::Button::Left && isSpeedButtonAt(mx, my)) {
+                playSfx(SfxType::UiClick);
                 toggleGameSpeed();
                 return;
             }
@@ -555,12 +669,14 @@ void Game::handleEvents() {
             if (mouseEvent->button == sf::Mouse::Button::Right) {
                 towerSelected = false;
                 clearTowerSelection();
+                playSfx(SfxType::UiClick);
                 std::cout << "[UI] Seleccion cancelada" << std::endl;
             }
             else if (mouseEvent->button == sf::Mouse::Button::Left) {
                 std::cout << "[MOUSE] x=" << mx << " y=" << my << std::endl;
                 if (mx >= mapWidth) {
                     if (!editTowers) {
+                        playSfx(SfxType::Invalid);
                         std::cout << "[UI] Ahora no puedes seleccionar torres" << std::endl;
                         return;
                     }
@@ -574,21 +690,25 @@ void Game::handleEvents() {
                     int slot = static_cast<int>(my / 95.f);
                     if (slot >= 0 && slot < 7) {
                         if (!isTutorialTowerAllowed(tipos[slot])) {
+                            playSfx(SfxType::Invalid);
                             std::cout << "[TUTORIAL] Esa torre se vera mas adelante" << std::endl;
                             return;
                         }
                         clearTowerSelection();
                         if (towerSelected && selectedTowerType == tipos[slot]) {
                             towerSelected = false;
+                            playSfx(SfxType::UiClick);
                             std::cout << "[UI] Torre deseleccionada" << std::endl;
                         } else {
                             selectedTowerType = tipos[slot];
                             towerSelected = true;
+                            playSfx(SfxType::Select);
                             std::cout << "[UI] Seleccionada: " << getTowerName(selectedTowerType) << std::endl;
                         }
                     }
                 } else {
                     if (currentState == GameState::ROUND_PAUSE && roundPreviewVisible) {
+                        playSfx(SfxType::Invalid);
                         std::cout << "[UI] Cierra el resumen con SPACE antes de colocar torres" << std::endl;
                         return;
                     }
@@ -596,6 +716,7 @@ void Game::handleEvents() {
                     if (editTowers && selectedPlacedTower) {
                         if (clickedTower == selectedPlacedTower) {
                             clearTowerSelection();
+                            playSfx(SfxType::UiClick);
                             std::cout << "[UI] Torre deseleccionada" << std::endl;
                         } else {
                             moveSelectedTower(mx, my);
@@ -605,6 +726,7 @@ void Game::handleEvents() {
                         clearTowerSelection();
                         selectedPlacedTower = clickedTower;
                         selectedPlacedTower->setSelected(true);
+                        playSfx(SfxType::Select);
                         std::cout << "[UI] Torre colocada seleccionada para mover" << std::endl;
                     } else if (towerSelected && editTowers) {
                         // Click en mapa - colocar torre
@@ -640,7 +762,10 @@ void Game::update() {
     }
     for (auto& enemy : enemies) {
         if (enemy && enemy->isAlive()) enemy->update(deltaTime);
-        if (enemy && enemy->hasReachedEnd()) damagePlayer(enemy->getEscapeDamage());
+        if (enemy && enemy->hasReachedEnd()) {
+            damagePlayer(enemy->getEscapeDamage());
+            playSfx(SfxType::LifeLost);
+        }
     }
     if (playerLives <= 0) {
         playerLives = 0;
@@ -716,6 +841,7 @@ void Game::update() {
                         std::cout << "[PINATA] Fruta ralentizo torres cercanas" << std::endl;
                     }
                     addPlayerMoney(static_cast<float>(e->getReward()));
+                    playSfx(SfxType::Reward);
                     std::cout << "[REWARD] +" << e->getReward()
                               << " dulces. Total: " << playerMoney << std::endl;
                 }
@@ -800,6 +926,12 @@ void Game::render() {
         return;
     }
 
+    if (currentState == GameState::OPTIONS) {
+        renderOptions();
+        window.display();
+        return;
+    }
+
     map.render(window);
     updateTowerRangeVisuals();
 
@@ -868,6 +1000,7 @@ void Game::updateProjectiles() {
                         enemy->takeDamage(projectile.damage);
                     }
                 }
+                playSfx(SfxType::Explosion);
                 explosionEffects.push_back(ExplosionEffect{
                     impactPosition,
                     projectile.splashRadius,
@@ -878,6 +1011,9 @@ void Game::updateProjectiles() {
                 target->takeDamage(projectile.damage);
                 if (projectile.type == ProjectileType::Ice) {
                     target->applySlow(0.5f, 2.f);
+                    playSfx(SfxType::IceHit);
+                } else {
+                    playSfx(SfxType::Hit);
                 }
                 impactEffects.push_back(ImpactEffect{
                     target->getPosition(),
@@ -1079,17 +1215,23 @@ bool Game::isSpeedButtonAt(float x, float y) const {
 
 void Game::placeTower(float x, float y) {
     if (!canEditTowers()) {
+        playSfx(SfxType::Invalid);
         std::cout << "[UI] No puedes colocar torres durante la oleada" << std::endl;
         return;
     }
     if (roundPreviewVisible) {
+        playSfx(SfxType::Invalid);
         std::cout << "[UI] Cierra el resumen con SPACE antes de colocar torres" << std::endl;
         return;
     }
 
     sf::Vector2f towerPosition{x, y};
-    if (!isValidTowerPosition(towerPosition)) return;
+    if (!isValidTowerPosition(towerPosition)) {
+        playSfx(SfxType::Invalid);
+        return;
+    }
     if (!isTutorialTowerAllowed(selectedTowerType)) {
+        playSfx(SfxType::Invalid);
         std::cout << "[TUTORIAL] Usa la torre indicada por el tutorial" << std::endl;
         return;
     }
@@ -1097,6 +1239,7 @@ void Game::placeTower(float x, float y) {
     int currentTypeCount = countTowersOfType(selectedTowerType);
     int towerLimit = getTowerLimit(selectedTowerType);
     if (currentTypeCount >= towerLimit) {
+        playSfx(SfxType::Invalid);
         std::cout << "[UI] Limite de " << getTowerName(selectedTowerType)
                   << " alcanzado (" << currentTypeCount << "/" << towerLimit << ")" << std::endl;
         return;
@@ -1137,6 +1280,7 @@ void Game::placeTower(float x, float y) {
     if (playerMoney >= cost) {
         playerMoney -= cost;
         towers.push_back(tower);
+        playSfx(SfxType::Place);
         if (currentState == GameState::TUTORIAL) {
             if (tutorialStep == 1) {
                 tutorialStep = 2;
@@ -1156,6 +1300,7 @@ void Game::placeTower(float x, float y) {
         }
         std::cout << "[TOWER] Colocada en (" << x << ", " << y << "). Dinero: " << playerMoney << std::endl;
     } else {
+        playSfx(SfxType::Invalid);
         std::cout << "[UI] Dinero insuficiente!" << std::endl;
     }
 }
@@ -1164,9 +1309,13 @@ void Game::moveSelectedTower(float x, float y) {
     if (!selectedPlacedTower) return;
 
     sf::Vector2f newPosition{x, y};
-    if (!isValidTowerPosition(newPosition, selectedPlacedTower)) return;
+    if (!isValidTowerPosition(newPosition, selectedPlacedTower)) {
+        playSfx(SfxType::Invalid);
+        return;
+    }
 
     selectedPlacedTower->moveTo(x, y);
+    playSfx(SfxType::Place);
     std::cout << "[TOWER] Movida a (" << x << ", " << y << ")" << std::endl;
 }
 
@@ -1394,7 +1543,10 @@ void Game::updateTutorial() {
 
     for (auto& enemy : enemies) {
         if (enemy && enemy->isAlive()) enemy->update(deltaTime);
-        if (enemy && enemy->hasReachedEnd()) damagePlayer(enemy->getEscapeDamage());
+        if (enemy && enemy->hasReachedEnd()) {
+            damagePlayer(enemy->getEscapeDamage());
+            playSfx(SfxType::LifeLost);
+        }
     }
 
     updateTowerRangeVisuals();
@@ -1460,6 +1612,7 @@ void Game::updateTutorial() {
                         slowTowersNear(e->getPosition(), 2000.f, 0.5f, 2.6f);
                     }
                     addPlayerMoney(static_cast<float>(e->getReward()));
+                    playSfx(SfxType::Reward);
                 }
                 return true;
             }),
@@ -1817,6 +1970,126 @@ void Game::renderCharactersGuide() {
     }
 }
 
+void Game::renderOptions() {
+    window.clear(sf::Color(18, 15, 13));
+
+    sf::RectangleShape topBar({static_cast<float>(width), 84.f});
+    topBar.setFillColor(sf::Color(28, 23, 20));
+    window.draw(topBar);
+
+    sf::RectangleShape backButton({130.f, 42.f});
+    backButton.setPosition({24.f, 24.f});
+    backButton.setFillColor(sf::Color(52, 48, 44));
+    backButton.setOutlineColor(sf::Color(255, 230, 90));
+    backButton.setOutlineThickness(2.f);
+    window.draw(backButton);
+
+    sf::Text backText(hudFont, "VOLVER", 18);
+    backText.setFillColor(sf::Color::White);
+    backText.setPosition({52.f, 33.f});
+    window.draw(backText);
+
+    sf::Text title(hudFont, "Opciones", 32);
+    title.setFillColor(sf::Color(255, 230, 90));
+    title.setPosition({190.f, 26.f});
+    window.draw(title);
+
+    sf::RectangleShape audioPanel({590.f, 250.f});
+    audioPanel.setPosition({48.f, 120.f});
+    audioPanel.setFillColor(sf::Color(28, 30, 32));
+    audioPanel.setOutlineColor(sf::Color(80, 80, 80));
+    audioPanel.setOutlineThickness(1.f);
+    window.draw(audioPanel);
+
+    sf::Text audioTitle(hudFont, "Audio", 28);
+    audioTitle.setFillColor(sf::Color::White);
+    audioTitle.setPosition({72.f, 142.f});
+    window.draw(audioTitle);
+
+    auto drawVolumeRow = [this](const std::string& label, float percent, float y) {
+        sf::Text labelText(hudFont, label, 22);
+        labelText.setFillColor(sf::Color(235, 235, 235));
+        labelText.setPosition({92.f, y + 8.f});
+        window.draw(labelText);
+
+        sf::RectangleShape minusButton({52.f, 42.f});
+        minusButton.setPosition({420.f, y});
+        minusButton.setFillColor(sf::Color(52, 48, 44));
+        minusButton.setOutlineColor(sf::Color(255, 230, 90));
+        minusButton.setOutlineThickness(2.f);
+        window.draw(minusButton);
+
+        sf::Text minusText(hudFont, "-", 30);
+        minusText.setFillColor(sf::Color::White);
+        minusText.setPosition({439.f, y + 1.f});
+        window.draw(minusText);
+
+        std::ostringstream valueText;
+        valueText << static_cast<int>(std::round(percent * 100.f)) << "%";
+        sf::Text value(hudFont, valueText.str(), 22);
+        value.setFillColor(sf::Color(255, 230, 90));
+        value.setPosition({492.f, y + 8.f});
+        window.draw(value);
+
+        sf::RectangleShape plusButton({52.f, 42.f});
+        plusButton.setPosition({602.f, y});
+        plusButton.setFillColor(sf::Color(52, 48, 44));
+        plusButton.setOutlineColor(sf::Color(255, 230, 90));
+        plusButton.setOutlineThickness(2.f);
+        window.draw(plusButton);
+
+        sf::Text plusText(hudFont, "+", 28);
+        plusText.setFillColor(sf::Color::White);
+        plusText.setPosition({618.f, y + 3.f});
+        window.draw(plusText);
+    };
+
+    drawVolumeRow("Musica", musicVolumeScale, 175.f);
+    drawVolumeRow("Efectos", sfxVolumeScale, 245.f);
+
+    sf::RectangleShape controlsPanel({560.f, 430.f});
+    controlsPanel.setPosition({680.f, 120.f});
+    controlsPanel.setFillColor(sf::Color(28, 30, 32));
+    controlsPanel.setOutlineColor(sf::Color(80, 80, 80));
+    controlsPanel.setOutlineThickness(1.f);
+    window.draw(controlsPanel);
+
+    sf::Text controlsTitle(hudFont, "Controles", 28);
+    controlsTitle.setFillColor(sf::Color::White);
+    controlsTitle.setPosition({704.f, 142.f});
+    window.draw(controlsTitle);
+
+    const std::vector<std::pair<std::string, std::string>> controls = {
+        {"Click izquierdo", "Seleccionar, colocar o mover torres"},
+        {"Click derecho", "Cancelar seleccion"},
+        {"SPACE", "Cerrar resumen o iniciar oleada"},
+        {"ENTER", "Aceptar pasos del tutorial"},
+        {"TAB", "Cambiar velocidad x1 / x2 en partida"},
+        {"Backspace", "Volver desde pantallas del menu"},
+        {"E/R/T/F/H/B", "Spawnear pinatas de prueba"}
+    };
+
+    float y = 198.f;
+    for (const auto& [key, action] : controls) {
+        sf::Text keyText(hudFont, key, 18);
+        keyText.setFillColor(sf::Color(255, 230, 90));
+        keyText.setPosition({710.f, y});
+        window.draw(keyText);
+
+        sf::Text actionText(hudFont, action, 17);
+        actionText.setFillColor(sf::Color(225, 225, 225));
+        actionText.setPosition({900.f, y + 1.f});
+        window.draw(actionText);
+
+        y += 46.f;
+    }
+
+    sf::Text hint(hudFont, "Backspace o boton Volver para regresar al menu", 18);
+    hint.setFillColor(sf::Color(210, 210, 210));
+    hint.setPosition({72.f, 410.f});
+    window.draw(hint);
+}
+
 void Game::renderPanel() {
     float mapWidth = static_cast<float>(width) - PANEL_WIDTH;
 
@@ -1988,6 +2261,7 @@ void Game::updateDebugInfo() {
     switch (currentState) {
         case GameState::MENU: oss << "MENU"; break;
         case GameState::CHARACTERS: oss << "CHARACTERS"; break;
+        case GameState::OPTIONS: oss << "OPTIONS"; break;
         case GameState::TUTORIAL: oss << "TUTORIAL"; break;
         case GameState::ROUND_ACTIVE: oss << "ROUND_ACTIVE"; break;
         case GameState::ROUND_PAUSE: oss << "ROUND_PAUSE"; break;

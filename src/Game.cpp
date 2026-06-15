@@ -206,13 +206,13 @@ namespace {
 
     const std::vector<GuidePinataInfo>& getGuidePinataInfo() {
         static const std::vector<GuidePinataInfo> info = {
-            {PinataType::ENGRUDO, "Engrudo", "Vida 55 + 6/ronda | Vel 88 | $8 | Escapa: -1", "Basica."},
-            {PinataType::ARCILLA, "Arcilla", "Vida 150 + 6/ronda | Vel 68 | $14 | Escapa: -3", "Recibe 60% dano normal; Machete 125%."},
-            {PinataType::REVELACION, "Revelacion", "Vida 220 + 6/ronda | Vel 85 | $22 | Escapa: -4", "Al morir genera bebe rosa y bebe azul."},
-            {PinataType::FRUTA, "Fruta", "Vida 120 + 6/ronda | Vel 82 | $12 | Escapa: -2", "Al morir ralentiza torres: radio 150, 5s."},
-            {PinataType::HIPNOTIZADORA, "Hipnotizadora", "Vida 180 + 6/ronda | Vel 78 | $16 | Escapa: -5", "Radio 190. Torres afectadas fallan 90%."},
-            {PinataType::BEBE_ROSA, "Bebe rosa", "Vida 45 + 6/ronda | Vel 95 | $4 | Escapa: -1", "Sale de Revelacion."},
-            {PinataType::BEBE_AZUL, "Bebe azul", "Vida 45 + 6/ronda | Vel 95 | $4 | Escapa: -1", "Sale de Revelacion."}
+            {PinataType::ENGRUDO, "Engrudo", "Vida 55 + 6/ronda | Vel 88 | 8 dulces | Escapa: -1", "Basica."},
+            {PinataType::ARCILLA, "Arcilla", "Vida 150 + 6/ronda | Vel 68 | 14 dulces | Escapa: -3", "Recibe 60% dano normal; Machete 125%."},
+            {PinataType::REVELACION, "Revelacion", "Vida 220 + 6/ronda | Vel 85 | 22 dulces | Escapa: -4", "Al morir genera bebe rosa y bebe azul."},
+            {PinataType::FRUTA, "Fruta", "Vida 120 + 6/ronda | Vel 82 | 12 dulces | Escapa: -2", "Al morir ralentiza torres: radio 150, 5s."},
+            {PinataType::HIPNOTIZADORA, "Hipnotizadora", "Vida 180 + 6/ronda | Vel 78 | 16 dulces | Escapa: -5", "Radio 190. Torres afectadas fallan 90%."},
+            {PinataType::BEBE_ROSA, "Bebe rosa", "Vida 45 + 6/ronda | Vel 95 | 4 dulces | Escapa: -1", "Sale de Revelacion."},
+            {PinataType::BEBE_AZUL, "Bebe azul", "Vida 45 + 6/ronda | Vel 95 | 4 dulces | Escapa: -1", "Sale de Revelacion."}
         };
         return info;
     }
@@ -270,6 +270,9 @@ Game::Game(unsigned int w, unsigned int h)
     }
     if (!iceProjectileTexture.loadFromFile("assets/textures/projectiles/HIELO_RASPADO.png")) {
         std::cerr << "[TEXTURE] No se pudo cargar HIELO_RASPADO.png" << std::endl;
+    }
+    if (!candyIconTexture.loadFromFile("assets/textures/ui/candy_icon.png")) {
+        std::cerr << "[TEXTURE] No se pudo cargar candy_icon.png" << std::endl;
     }
     loadMusic();
     loadSfx();
@@ -1911,7 +1914,7 @@ void Game::renderCharactersGuide() {
         window.draw(name);
 
         std::ostringstream stat;
-        stat << "$" << getTowerCost(info.type)
+        stat << getTowerCost(info.type) << " dulces"
              << " | Lim " << getTowerLimit(info.type)
              << " | Dano " << info.damage
              << " | Rango " << static_cast<int>(info.range);
@@ -2142,10 +2145,7 @@ void Game::renderPanel() {
             window.draw(spr);
         }
 
-        sf::Text costText(hudFont, "$" + std::to_string(getTowerCost(tipos[i])), 20);
-        costText.setFillColor(allowed ? sf::Color(255, 215, 0) : sf::Color(120, 120, 120));
-        costText.setPosition({mapWidth + 105.f, slotY + 22.f});
-        window.draw(costText);
+        drawCandyAmount(mapWidth + 104.f, slotY + 20.f, getTowerCost(tipos[i]), 20, 24.f);
 
         int placedCount = countTowersOfType(tipos[i]);
         int towerLimit = getTowerLimit(tipos[i]);
@@ -2242,10 +2242,11 @@ void Game::renderRoundPreview() {
     title.setPosition({x, y});
     window.draw(title);
 
-    sf::Text moneyText(hudFont, "Dulces: $" + std::to_string(static_cast<int>(playerMoney)), 22);
-    moneyText.setFillColor(sf::Color(255, 215, 0));
-    moneyText.setPosition({x, y + 52.f});
-    window.draw(moneyText);
+    sf::Text moneyLabel(hudFont, "Dulces:", 22);
+    moneyLabel.setFillColor(sf::Color(255, 215, 0));
+    moneyLabel.setPosition({x, y + 52.f});
+    window.draw(moneyLabel);
+    drawCandyAmount(x + 94.f, y + 50.f, static_cast<int>(playerMoney), 22, 28.f);
 
     std::vector<std::string> lines = {
         "Total de pinatas: " + std::to_string(preview.total),
@@ -2366,6 +2367,26 @@ void Game::renderEndMenu() {
     drawButton("SALIR AL MENU", {490.f, 422.f});
 }
 
+void Game::drawCandyAmount(float x, float y, int amount, unsigned int characterSize, float iconSize) {
+    if (candyIconTexture.getSize().x > 0) {
+        sf::Sprite candy(candyIconTexture);
+        auto size = candyIconTexture.getSize();
+        candy.setOrigin({static_cast<float>(size.x) / 2.f, static_cast<float>(size.y) / 2.f});
+        candy.setPosition({x + iconSize / 2.f, y + iconSize / 2.f});
+        float maxDimension = static_cast<float>(std::max(size.x, size.y));
+        if (maxDimension > 0.f) {
+            float scale = iconSize / maxDimension;
+            candy.setScale({scale, scale});
+        }
+        window.draw(candy);
+    }
+
+    sf::Text amountText(hudFont, std::to_string(amount), characterSize);
+    amountText.setFillColor(sf::Color(255, 215, 0));
+    amountText.setPosition({x + iconSize + 6.f, y + 1.f});
+    window.draw(amountText);
+}
+
 void Game::updateDebugInfo() {
     std::ostringstream oss;
     oss << "State: ";
@@ -2406,11 +2427,8 @@ void Game::renderHUD() {
     hudBar.setFillColor(sf::Color(0, 0, 0, 180));
     window.draw(hudBar);
 
-    // Dinero
-    sf::Text moneyText(hudFont, "$" + std::to_string(static_cast<int>(playerMoney)), 20);
-    moneyText.setFillColor(sf::Color(255, 215, 0)); // dorado
-    moneyText.setPosition({10.f, 8.f});
-    window.draw(moneyText);
+    // Dulces
+    drawCandyAmount(10.f, 6.f, static_cast<int>(playerMoney), 20, 26.f);
 
     // Vidas
     sf::Text livesText(hudFont, "Vidas: " + std::to_string(playerLives), 20);

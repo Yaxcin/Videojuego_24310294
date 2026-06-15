@@ -195,6 +195,7 @@ private:
     void renderRoundPreview();
     void renderPauseMenu();
     void renderEndMenu();
+    void drawCandyAmount(float x, float y, int amount, unsigned int characterSize = 20, float iconSize = 24.f);
     void startWave();
     void renderHUD();   
 
@@ -204,6 +205,7 @@ private:
     sf::Texture chanclaProjectileTexture;
     sf::Texture rocketProjectileTexture;
     sf::Texture iceProjectileTexture;
+    sf::Texture candyIconTexture;
     sf::Sprite* menuSprite = nullptr;
 };
 

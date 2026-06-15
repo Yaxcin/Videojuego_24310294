@@ -8,10 +8,10 @@
 
 namespace {
     constexpr int MAX_ROUNDS = 15;
-    constexpr float MENU_MUSIC_VOLUME = 13.f;
-    constexpr float GAMEPLAY_MUSIC_VOLUME = 57.f;
-    constexpr float VICTORY_MUSIC_VOLUME = 57.f;
-    constexpr float DEFEAT_MUSIC_VOLUME = 57.f;
+    constexpr float MENU_MUSIC_VOLUME = 23.f;
+    constexpr float GAMEPLAY_MUSIC_VOLUME = 100.f;
+    constexpr float VICTORY_MUSIC_VOLUME = 100.f;
+    constexpr float DEFEAT_MUSIC_VOLUME = 100.f;
     constexpr float SFX_VOLUME = 18.f;
     constexpr float VOLUME_STEP = 0.1f;
 
@@ -237,7 +237,7 @@ Game::Game(unsigned int w, unsigned int h)
       currentState(GameState::MENU),
       deltaTime(0.0f),
       gameSpeedMultiplier(1.f),
-      musicVolumeScale(1.f),
+      musicVolumeScale(0.3f),
       sfxVolumeScale(1.f),
       currentMusicTrack(MusicTrack::None),
       menuMusicLoaded(false),
@@ -254,6 +254,7 @@ Game::Game(unsigned int w, unsigned int h)
       selectedTowerType(TowerType::NINO_PALO),
       towerSelected(false),
       roundPreviewVisible(false),
+      pauseMenuVisible(false),
       tutorialOfferedThisSession(false),
       tutorialChoiceVisible(false),
       tutorialWaveActive(false),
@@ -440,7 +441,7 @@ void Game::cleanupSfx() {
 }
 
 void Game::adjustMusicVolume(float delta) {
-    musicVolumeScale = std::clamp(musicVolumeScale + delta, 0.f, 1.5f);
+    musicVolumeScale = std::clamp(musicVolumeScale + delta, 0.f, 1.f);
     applyMusicVolumes();
     playSfx(SfxType::UiClick);
     std::cout << "[OPTIONS] Musica: " << static_cast<int>(musicVolumeScale * 100.f) << "%" << std::endl;
@@ -452,6 +453,29 @@ void Game::adjustSfxVolume(float delta) {
     std::cout << "[OPTIONS] Efectos: " << static_cast<int>(sfxVolumeScale * 100.f) << "%" << std::endl;
 }
 
+bool Game::canShowPauseMenu() const {
+    return currentState == GameState::TUTORIAL ||
+           currentState == GameState::ROUND_ACTIVE ||
+           currentState == GameState::ROUND_PAUSE ||
+           currentState == GameState::COLLECTING_COINS;
+}
+
+void Game::restartGameFromOverlay() {
+    pauseMenuVisible = false;
+    resetPlaySession();
+    tutorialOfferedThisSession = true;
+    currentState = GameState::ROUND_PAUSE;
+    roundPreviewVisible = true;
+    std::cout << "[GAME] Partida reiniciada" << std::endl;
+}
+
+void Game::returnToMainMenu() {
+    pauseMenuVisible = false;
+    resetPlaySession();
+    currentState = GameState::MENU;
+    std::cout << "[STATE] MENU" << std::endl;
+}
+
 void Game::handleEvents() {
     while (auto event = window.pollEvent()) {
         if (event->is<sf::Event::Closed>()) {
@@ -459,7 +483,20 @@ void Game::handleEvents() {
         }
         else if (const auto* keyEvent = event->getIf<sf::Event::KeyPressed>()) {
             if (keyEvent->code == sf::Keyboard::Key::Escape) {
-                window.close();
+                if (canShowPauseMenu()) {
+                    pauseMenuVisible = !pauseMenuVisible;
+                    towerSelected = false;
+                    clearTowerSelection();
+                    playSfx(SfxType::UiClick);
+                    std::cout << "[UI] Pausa: " << (pauseMenuVisible ? "ON" : "OFF") << std::endl;
+                } else if (currentState == GameState::CHARACTERS || currentState == GameState::OPTIONS) {
+                    playSfx(SfxType::UiClick);
+                    currentState = GameState::MENU;
+                    std::cout << "[STATE] MENU" << std::endl;
+                }
+            }
+            else if (pauseMenuVisible) {
+                continue;
             }
             else if (keyEvent->code == sf::Keyboard::Key::Num1) {
                 currentState = GameState::MENU;
@@ -591,6 +628,43 @@ void Game::handleEvents() {
     sf::Vector2f mousePos = window.mapPixelToCoords(mouseEvent->position);
     float mx = mousePos.x;
     float my = mousePos.y;
+
+    if (pauseMenuVisible) {
+        if (mouseEvent->button != sf::Mouse::Button::Left) return;
+
+        sf::FloatRect continueButton({490.f, 285.f}, {300.f, 52.f});
+        sf::FloatRect restartButton({490.f, 355.f}, {300.f, 52.f});
+        sf::FloatRect menuButton({490.f, 425.f}, {300.f, 52.f});
+
+        if (continueButton.contains({mx, my})) {
+            pauseMenuVisible = false;
+            playSfx(SfxType::UiClick);
+            std::cout << "[UI] Continuar" << std::endl;
+        } else if (restartButton.contains({mx, my})) {
+            playSfx(SfxType::UiClick);
+            restartGameFromOverlay();
+        } else if (menuButton.contains({mx, my})) {
+            playSfx(SfxType::UiClick);
+            returnToMainMenu();
+        }
+        return;
+    }
+
+    if (currentState == GameState::VICTORY || currentState == GameState::DEFEAT) {
+        if (mouseEvent->button != sf::Mouse::Button::Left) return;
+
+        sf::FloatRect replayButton({490.f, 354.f}, {300.f, 52.f});
+        sf::FloatRect menuButton({490.f, 422.f}, {300.f, 52.f});
+
+        if (replayButton.contains({mx, my})) {
+            playSfx(SfxType::UiClick);
+            restartGameFromOverlay();
+        } else if (menuButton.contains({mx, my})) {
+            playSfx(SfxType::UiClick);
+            returnToMainMenu();
+        }
+        return;
+    }
 
     if (currentState == GameState::MENU) {
         sf::Vector2u menuSize = menuTexture.getSize();
@@ -739,6 +813,11 @@ void Game::handleEvents() {
 }
 
 void Game::update() {
+    if (pauseMenuVisible) {
+        updateDebugInfo();
+        return;
+    }
+
     switch (currentState) {
         case GameState::TUTORIAL:
             updateTutorial();
@@ -770,6 +849,7 @@ void Game::update() {
     if (playerLives <= 0) {
         playerLives = 0;
         currentState = GameState::DEFEAT;
+        pauseMenuVisible = false;
         towerSelected = false;
         clearTowerSelection();
         std::cout << "[GAME] Derrota" << std::endl;
@@ -854,6 +934,7 @@ void Game::update() {
     if (enemiesLeftToSpawn == 0 && enemies.empty()) {
         if (currentRound >= MAX_ROUNDS) {
             currentState = GameState::VICTORY;
+            pauseMenuVisible = false;
             towerSelected = false;
             clearTowerSelection();
             std::cout << "[GAME] Victoria! Completaste " << MAX_ROUNDS << " rondas" << std::endl;
@@ -950,6 +1031,8 @@ void Game::render() {
     renderHUD();
     renderRoundPreview();
     renderTutorial();
+    renderPauseMenu();
+    renderEndMenu();
 
     window.display();
 }
@@ -1449,6 +1532,7 @@ void Game::resetPlaySession() {
     selectedTowerType = TowerType::NINO_PALO;
     towerSelected = false;
     roundPreviewVisible = false;
+    pauseMenuVisible = false;
     clearTowerSelection();
     enemies.clear();
     towers.clear();
@@ -1508,6 +1592,7 @@ void Game::finishTutorial() {
     playerLives = 100;
     currentRound = 1;
     enemiesLeftToSpawn = 0;
+    pauseMenuVisible = false;
     enemies.clear();
     towers.clear();
     projectiles.clear();
@@ -2253,6 +2338,103 @@ void Game::renderRoundPreview() {
     hint.setFillColor(sf::Color::Yellow);
     hint.setPosition({x, y + 335.f});
     window.draw(hint);
+}
+
+void Game::renderPauseMenu() {
+    if (!pauseMenuVisible) return;
+
+    sf::RectangleShape overlay({static_cast<float>(width), static_cast<float>(height)});
+    overlay.setFillColor(sf::Color(0, 0, 0, 145));
+    window.draw(overlay);
+
+    sf::RectangleShape box({430.f, 390.f});
+    box.setOrigin({215.f, 195.f});
+    box.setPosition({static_cast<float>(width) / 2.f, static_cast<float>(height) / 2.f});
+    box.setFillColor(sf::Color(22, 20, 18, 240));
+    box.setOutlineColor(sf::Color(255, 230, 90, 220));
+    box.setOutlineThickness(3.f);
+    window.draw(box);
+
+    sf::Text title(hudFont, "Pausa", 38);
+    title.setFillColor(sf::Color(255, 230, 90));
+    sf::FloatRect titleBounds = title.getLocalBounds();
+    title.setPosition({static_cast<float>(width) / 2.f - titleBounds.size.x / 2.f, 214.f});
+    window.draw(title);
+
+    auto drawButton = [this](const std::string& text, const sf::Vector2f& position) {
+        sf::RectangleShape button({300.f, 52.f});
+        button.setPosition(position);
+        button.setFillColor(sf::Color(72, 54, 36, 235));
+        button.setOutlineColor(sf::Color(255, 230, 90, 210));
+        button.setOutlineThickness(2.f);
+        window.draw(button);
+
+        sf::Text label(hudFont, text, 23);
+        label.setFillColor(sf::Color::White);
+        sf::FloatRect bounds = label.getLocalBounds();
+        label.setPosition({
+            position.x + 150.f - bounds.size.x / 2.f,
+            position.y + 11.f
+        });
+        window.draw(label);
+    };
+
+    drawButton("CONTINUAR", {490.f, 285.f});
+    drawButton("REINICIAR", {490.f, 355.f});
+    drawButton("SALIR AL MENU", {490.f, 425.f});
+}
+
+void Game::renderEndMenu() {
+    if (currentState != GameState::VICTORY && currentState != GameState::DEFEAT) return;
+
+    sf::RectangleShape overlay({static_cast<float>(width), static_cast<float>(height)});
+    overlay.setFillColor(sf::Color(0, 0, 0, 135));
+    window.draw(overlay);
+
+    sf::RectangleShape box({500.f, 300.f});
+    box.setOrigin({250.f, 150.f});
+    box.setPosition({static_cast<float>(width) / 2.f, static_cast<float>(height) / 2.f});
+    box.setFillColor(sf::Color(22, 20, 18, 242));
+    box.setOutlineColor(currentState == GameState::VICTORY ? sf::Color(255, 230, 90, 230) : sf::Color(255, 95, 95, 230));
+    box.setOutlineThickness(3.f);
+    window.draw(box);
+
+    std::string titleText = currentState == GameState::VICTORY ? "VICTORIA!" : "DERROTA";
+    sf::Text title(hudFont, titleText, 42);
+    title.setFillColor(currentState == GameState::VICTORY ? sf::Color(255, 230, 90) : sf::Color(255, 105, 105));
+    sf::FloatRect titleBounds = title.getLocalBounds();
+    title.setPosition({static_cast<float>(width) / 2.f - titleBounds.size.x / 2.f, 224.f});
+    window.draw(title);
+
+    std::string subtitle = currentState == GameState::VICTORY
+        ? "Completaste todas las rondas."
+        : "Las pinatas llegaron al final.";
+    sf::Text detail(hudFont, subtitle, 20);
+    detail.setFillColor(sf::Color(230, 230, 230));
+    sf::FloatRect detailBounds = detail.getLocalBounds();
+    detail.setPosition({static_cast<float>(width) / 2.f - detailBounds.size.x / 2.f, 292.f});
+    window.draw(detail);
+
+    auto drawButton = [this](const std::string& text, const sf::Vector2f& position) {
+        sf::RectangleShape button({300.f, 52.f});
+        button.setPosition(position);
+        button.setFillColor(sf::Color(72, 54, 36, 235));
+        button.setOutlineColor(sf::Color(255, 230, 90, 210));
+        button.setOutlineThickness(2.f);
+        window.draw(button);
+
+        sf::Text label(hudFont, text, 23);
+        label.setFillColor(sf::Color::White);
+        sf::FloatRect bounds = label.getLocalBounds();
+        label.setPosition({
+            position.x + 150.f - bounds.size.x / 2.f,
+            position.y + 11.f
+        });
+        window.draw(label);
+    };
+
+    drawButton("JUGAR DE NUEVO", {490.f, 354.f});
+    drawButton("SALIR AL MENU", {490.f, 422.f});
 }
 
 void Game::updateDebugInfo() {

@@ -136,6 +136,7 @@ private:
     TowerType selectedTowerType;
     bool towerSelected;
     bool roundPreviewVisible;
+    bool pauseMenuVisible;
     bool tutorialOfferedThisSession;
     bool tutorialChoiceVisible;
     bool tutorialWaveActive;
@@ -158,6 +159,9 @@ private:
     void cleanupSfx();
     void adjustMusicVolume(float delta);
     void adjustSfxVolume(float delta);
+    bool canShowPauseMenu() const;
+    void restartGameFromOverlay();
+    void returnToMainMenu();
     void updateProjectiles();
     void renderProjectiles();
     void updateDebugInfo();
@@ -190,6 +194,8 @@ private:
     void renderPanel();
     void renderTowerPreview();
     void renderRoundPreview();
+    void renderPauseMenu();
+    void renderEndMenu();
     void startWave();
     void renderHUD();   
 

@@ -99,6 +99,7 @@ private:
     unsigned int width;
     unsigned int height;
     sf::RenderWindow window;
+    bool fullscreenMode;
 
     GameState currentState;
     float deltaTime;
@@ -160,6 +161,8 @@ private:
     void cleanupSfx();
     void adjustMusicVolume(float delta);
     void adjustSfxVolume(float delta);
+    void applyWindowMode();
+    void toggleFullscreen();
     bool canShowPauseMenu() const;
     void restartGameFromOverlay();
     void returnToMainMenu();

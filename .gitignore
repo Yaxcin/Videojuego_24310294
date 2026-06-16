@@ -4,9 +4,14 @@
 *.exe
 *.dll
 
+# CETUS pide subir el ejecutable dentro de bin/
+!bin/
+!bin/*.exe
+!bin/*.dll
+!bin/.gitkeep
+
 # Directorios de compilacion
 obj/
-bin/
 build/
 
 # Editores y IDEs

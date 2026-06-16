@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <cstdint>
 
 namespace {
     constexpr int MAX_ROUNDS = 15;
@@ -23,6 +24,12 @@ namespace {
         int revelacion = 0;
         int hipnotizadora = 0;
     };
+
+    sf::VideoMode getFullscreenVideoMode() {
+        sf::VideoMode desktopMode = sf::VideoMode::getDesktopMode();
+        if (desktopMode.isValid()) return desktopMode;
+        return sf::VideoMode(sf::Vector2u(1280, 720));
+    }
 
     struct GuideTowerInfo {
         TowerType type;
@@ -299,7 +306,8 @@ namespace {
 
 Game::Game(unsigned int w, unsigned int h) 
     : width(w), height(h), 
-      window(sf::VideoMode(sf::Vector2u(w, h)), "Tower Defense Mexicano"),
+      window(getFullscreenVideoMode(), "Tower Defense Mexicano", sf::Style::None, sf::State::Fullscreen),
+      fullscreenMode(true),
       currentState(GameState::MENU),
       deltaTime(0.0f),
       gameSpeedMultiplier(1.f),
@@ -331,6 +339,7 @@ Game::Game(unsigned int w, unsigned int h)
       selectedPlacedTower(nullptr) {
     
     window.setFramerateLimit(60);
+    window.setView(sf::View(sf::FloatRect({0.f, 0.f}, {static_cast<float>(width), static_cast<float>(height)})));
     TextureManager::getInstance().loadAllTowerTextures();
     if (!hudFont.openFromFile("assets/fonts/arial.ttf")) {
     std::cerr << "[FONT] No se pudo cargar la fuente" << std::endl;
@@ -546,13 +555,45 @@ void Game::returnToMainMenu() {
     std::cout << "[STATE] MENU" << std::endl;
 }
 
+void Game::applyWindowMode() {
+    const sf::VideoMode mode = fullscreenMode
+        ? getFullscreenVideoMode()
+        : sf::VideoMode(sf::Vector2u(width, height));
+    const std::uint32_t style = fullscreenMode ? sf::Style::None : sf::Style::Default;
+    const sf::State state = fullscreenMode ? sf::State::Fullscreen : sf::State::Windowed;
+
+    window.create(mode, "Tower Defense Mexicano", style, state);
+    window.setFramerateLimit(60);
+    window.setView(sf::View(sf::FloatRect({0.f, 0.f}, {static_cast<float>(width), static_cast<float>(height)})));
+
+    if (!fullscreenMode) {
+        const sf::Vector2u desktopSize = sf::VideoMode::getDesktopMode().size;
+        if (desktopSize.x > width && desktopSize.y > height) {
+            window.setPosition({
+                static_cast<int>((desktopSize.x - width) / 2),
+                static_cast<int>((desktopSize.y - height) / 2)
+            });
+        }
+    }
+}
+
+void Game::toggleFullscreen() {
+    fullscreenMode = !fullscreenMode;
+    applyWindowMode();
+    playSfx(SfxType::UiClick);
+    std::cout << "[WINDOW] Modo " << (fullscreenMode ? "pantalla completa" : "ventana") << std::endl;
+}
+
 void Game::handleEvents() {
     while (auto event = window.pollEvent()) {
         if (event->is<sf::Event::Closed>()) {
             window.close();
         }
         else if (const auto* keyEvent = event->getIf<sf::Event::KeyPressed>()) {
-            if (keyEvent->code == sf::Keyboard::Key::Escape) {
+            if (keyEvent->code == sf::Keyboard::Key::F11) {
+                toggleFullscreen();
+            }
+            else if (keyEvent->code == sf::Keyboard::Key::Escape) {
                 if (canShowPauseMenu()) {
                     pauseMenuVisible = !pauseMenuVisible;
                     towerSelected = false;
@@ -2193,6 +2234,7 @@ void Game::renderOptions() {
         {"SPACE", "Cerrar resumen o iniciar oleada"},
         {"ENTER", "Aceptar pasos del tutorial"},
         {"TAB", "Cambiar velocidad x1 / x2 en partida"},
+        {"F11", "Alternar ventana / pantalla completa"},
         {"ESC", "Pausar durante una partida"},
         {"Backspace", "Volver desde pantallas del menu"}
     };

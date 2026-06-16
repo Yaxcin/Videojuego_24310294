@@ -1,128 +1,134 @@
-# Tower Defense Mexicano
+# Pinaton: Tower Defense Mexicano
 
-Tower Defense inspirado en Bloons, pero con una tematica mexicana completa.
-Basado en la estructura de proyecto de **EjemplosJuego** del profesor.
+## Descripcion del Proyecto
 
-## Tema del Juego
-- **Enemigos**: Pinatas (Engrudo, Arcilla, Revelacion, Fruta, Hipnotizadora)
-- **Torres**: Personajes mexicanos (Nino con Palo, Viejo con Machete, Taquero, Abuelita, Don de Cohetes, Organillero, Raspadero)
-- **Monedas**: Dulces de chocolate de la pinata "Bolo Bolo"
+Pinaton es un juego de tower defense inspirado en la estructura clasica de Bloons, pero con una tematica mexicana. En lugar de globos, el jugador defiende el camino de distintas piñatas con habilidades especiales, usando personajes mexicanos como torres.
 
-## Requisitos
-- **Compilador**: MinGW64 (via MSYS2)
-- **SFML 3.x**: Instalado en MSYS2
-- **make**: Parte de mingw64-toolchain
-- **PowerShell 5+** o bash
+El juego incluye menu principal, tutorial jugable, sistema de oleadas, musica, efectos de sonido, pantalla de opciones, pausa, bestiario, animaciones, proyectiles y condiciones de victoria/derrota.
 
-## Compilacion
+## Objetivo del Juego
 
-### Opcion 1: Makefile
+El objetivo es sobrevivir 15 rondas evitando que las piñatas lleguen al final del camino. Para defenderte debes colocar personajes alrededor del mapa, ganar dulces al destruir piñatas y mejorar tu defensa entre rondas.
+
+Si completas las 15 rondas, ganas la partida. Si las piñatas reducen tus vidas a 0, pierdes.
+
+## Controles
+
+- Mouse izquierdo: seleccionar personajes, colocarlos, moverlos entre rondas y usar botones del menu.
+- Mouse derecho: cancelar la seleccion actual.
+- SPACE: avanzar pantallas de preparacion e iniciar oleadas.
+- ENTER: avanzar pasos del tutorial cuando se indique.
+- TAB: cambiar velocidad de juego entre x1 y x2 durante la partida.
+- ESC: abrir el menu de pausa durante la partida.
+- Backspace: volver desde pantallas secundarias como opciones o personajes.
+
+## Mecanicas
+
+- Dulces: moneda del juego. Se obtienen al destruir piñatas y se usan para comprar personajes.
+- Oleadas: cada ronda genera una combinacion distinta de piñatas.
+- Preparacion: entre rondas puedes colocar o mover personajes. Durante una oleada no se pueden modificar defensas.
+- Limites de personajes: cada tipo de personaje tiene un limite para mantener el balance.
+- Tutorial: antes de iniciar una partida se puede jugar un tutorial guiado para aprender las mecanicas principales.
+- Velocidad: durante las oleadas se puede acelerar el juego a x2.
+
+### Personajes
+
+- Niño con Palo: personaje barato de dano directo.
+- Viejo con Machete: fuerte contra piñatas resistentes como la de arcilla.
+- Taquero: lanza limones como proyectiles rapidos.
+- Abuelita: ataca a la piñata mas avanzada del mapa y puede deshipnotizar personajes.
+- Don de los Cohetes: lanza cohetes con dano en area.
+- Organillero: aumenta la velocidad de ataque de personajes cercanos y protege contra hipnosis.
+- Raspadero: lanza hielo y ralentiza piñatas.
+
+### Piñatas
+
+- Engrudo: piñata basica y rapida.
+- Arcilla: piñata resistente que funciona como tanque.
+- Revelacion: al morir genera dos piñatas bebe, una rosa y una azul.
+- Fruta: al romperse ralentiza temporalmente a personajes cercanos.
+- Hipnotizadora: provoca que personajes dentro de su efecto fallen ataques y reduce temporalmente el alcance del Organillero.
+
+## Caracteristicas
+
+- 15 rondas balanceadas.
+- Mapa personalizado con camino de tierra.
+- Menu principal con botones funcionales.
+- Pantalla de personajes y bestiario.
+- Tutorial jugable.
+- Musica de menu, partida, victoria y derrota.
+- Efectos de sonido para ataques, impactos y eventos.
+- Animaciones de ataque y proyectiles para los personajes.
+- Sistema de pausa, reinicio, victoria y derrota.
+- Opciones de volumen para musica y efectos.
+
+## Equipo
+
+- Yael Higareda Velazquez - Desarrollo, diseno, implementacion, balance y pruebas.
+
+## Tecnologias
+
+- Lenguaje: C++17.
+- Libreria grafica y multimedia: SFML 3.x.
+- Compilador: MinGW64 mediante MSYS2.
+- Automatizacion local: makefile.
+- Control de versiones: Git y GitHub.
+- Herramientas de apoyo: Visual Studio Code, Procreate, OBS Studio y herramientas de generacion/edicion de assets.
+
+## Creditos
+
+- Inspiracion de jugabilidad: juegos de tower defense tipo Bloons.
+- Tematica visual: fiestas mexicanas, piñatas, dulces y personajes populares.
+- Libreria multimedia: SFML.
+- Assets visuales, musica y efectos: recursos creados y editados para este proyecto con apoyo de herramientas digitales e IA generativa.
+
+## Compilacion y Ejecucion
+
+Para compilar:
+
 ```bash
 make all
 ```
 
-### Opcion 2: Compilar y ejecutar
+Para ejecutar:
+
 ```bash
 make run
 ```
 
-### Opcion 3: Recompilacion limpia
-```bash
-make rebuild
-```
+Tambien se puede abrir directamente el ejecutable:
 
-## Ejecucion
 ```powershell
 .\bin\TowerDefenseMexicano.exe
 ```
 
-## Controles
-- **ESC**: Cerrar juego
-- **SPACE**: Iniciar oleada
-- **Click izquierdo en panel**: Seleccionar torre
-- **Click izquierdo en mapa**: Colocar torre o mover torre seleccionada
-- **Click derecho**: Cancelar seleccion
-- **M**: +100 dinero (debug)
-- **L**: -1 vida (debug)
-- **E**: Crear pinata Engrudo (debug)
-
-## Estructura del Proyecto
+## Estructura para CETUS
 
 ```text
 .
-|-- include/
-|   |-- GameWindow.hpp
-|   |-- GameState.hpp
-|   |-- Entity.hpp
-|   |-- Enemies/
-|   |-- Towers/
-|-- src/
-|   |-- main.cpp
-|   |-- Game.cpp
-|   |-- Entity.cpp
-|   |-- Enemies/
-|   |-- Towers/
-|-- assets/
-|   |-- textures/
-|   |-- fonts/
+|-- .github/
+|   |-- workflows/
+|-- video/
+|   |-- demo.mp4
+|-- gallery/
+|   |-- cover.png
+|-- screenshots/
+|   |-- screenshot1.png
+|   |-- screenshot2.png
+|   |-- screenshot3.png
 |-- bin/
-|-- obj/
-|-- makefile
+|   |-- TowerDefenseMexicano.exe
+|-- assets/
+|-- include/
+|-- src/
 |-- README.md
+|-- makefile
+|-- .gitignore
 ```
 
-## Comandos make utiles
+## Notas de Entrega
 
-```bash
-make all       # Compilar proyecto
-make run       # Compilar y ejecutar
-make clean     # Limpiar compilacion
-make rebuild   # Limpiar y recompilar
-make help      # Mostrar ayuda
-```
-
-## Estado del Proyecto
-
-### Fase 1: Infraestructura base
-- [x] Configuracion SFML 3.x
-- [x] Bucle principal a 60 FPS
-- [x] Maquina de estados
-- [x] Estructura compatible con EjemplosJuego
-
-### Fase 2: Sistema de pinatas
-- [x] Pinatas con camino y movimiento
-- [x] Tipos visuales y estadisticas base
-- [ ] Habilidades especiales de cada tipo
-
-### Fase 3: Sistema de torres
-- [x] Torre base
-- [x] Personajes principales colocables
-- [x] Targeting basico y efectos visuales simples
-- [ ] Proyectiles/sprites animados
-
-### Fase 4: Flujo de olas y economia
-- [x] Oleadas basicas
-- [x] Sistema de dinero y recompensas
-- [x] Compra y movimiento entre rondas
-- [ ] Mecanica "Bolo Bolo"
-
-### Fase 5: UI y pulido
-- [x] HUD en pantalla
-- [x] Costos en panel lateral
-- [ ] Sonidos y musica
-- [ ] Menus completos
-
-## Notas Tecnicas
-- **C++**: Estandar C++17
-- **SFML 3.x**: Adaptado a nueva API (std::optional para eventos)
-- **Estructura**: Basada en EjemplosJuego del repositorio del profesor
-
-## Recursos Utiles
-- Repositorio de ejemplos: `C:\Users\higar\OneDrive\Escritorio\EjemplosJuego`
-- Documentacion SFML 3: https://www.sfml-dev.org/documentation/3.0/
-- MinGW64 via MSYS2: https://www.msys2.org/
-
----
-
-**Version**: 0.2.0
-**Ultima actualizacion**: 2026-06-11
+- El video de gameplay debe guardarse como `video/demo.mp4`.
+- La portada debe guardarse como `gallery/cover.png` con tamano 720x1080.
+- Las capturas deben guardarse en `screenshots/` como PNG, minimo 3 imagenes.
+- El ejecutable principal debe estar en `bin/`.

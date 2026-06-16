@@ -306,7 +306,7 @@ namespace {
 
 Game::Game(unsigned int w, unsigned int h) 
     : width(w), height(h), 
-      window(getFullscreenVideoMode(), "Pinaton", sf::Style::None, sf::State::Fullscreen),
+      window(getFullscreenVideoMode(), "Tower Defense Mexicano", sf::Style::None, sf::State::Fullscreen),
       fullscreenMode(true),
       currentState(GameState::MENU),
       deltaTime(0.0f),
@@ -562,7 +562,7 @@ void Game::applyWindowMode() {
     const std::uint32_t style = fullscreenMode ? sf::Style::None : sf::Style::Default;
     const sf::State state = fullscreenMode ? sf::State::Fullscreen : sf::State::Windowed;
 
-    window.create(mode, "Pinaton", style, state);
+    window.create(mode, "Tower Defense Mexicano", style, state);
     window.setFramerateLimit(60);
     window.setView(sf::View(sf::FloatRect({0.f, 0.f}, {static_cast<float>(width), static_cast<float>(height)})));
 
@@ -1887,7 +1887,7 @@ void Game::renderTutorial() {
             body = tutorialWaveActive
                 ? "La pinata de Revelacion se rompe en pinatas bebe."
                 : "Ahora prueba contra Arcilla y Revelacion.";
-            body2 = tutorialWaveActive ? "Las pinatas bebe son como la de engrudo." : "";
+            body2 = tutorialWaveActive ? "Observa si aparecen las pinatas bebe." : "";
             hint = tutorialWaveActive ? "Espera a que termine la mini oleada." : "SPACE: Iniciar mini oleada";
             break;
         case 8:

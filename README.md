@@ -64,8 +64,7 @@ Si completas las 15 rondas, ganas la partida. Si las piñatas reducen tus vidas 
 
 ## Equipo
 
-- Yael Higareda Velazquez - Desarrollo, diseno, implementacion, balance y pruebas.
-
+- Yael Higareda Velazquez 24310294
 ## Tecnologias
 
 - Lenguaje: C++17.
@@ -82,53 +81,3 @@ Si completas las 15 rondas, ganas la partida. Si las piñatas reducen tus vidas 
 - Libreria multimedia: SFML.
 - Assets visuales, musica y efectos: recursos creados y editados para este proyecto con apoyo de herramientas digitales e IA generativa.
 
-## Compilacion y Ejecucion
-
-Para compilar:
-
-```bash
-make all
-```
-
-Para ejecutar:
-
-```bash
-make run
-```
-
-Tambien se puede abrir directamente el ejecutable:
-
-```powershell
-.\bin\TowerDefenseMexicano.exe
-```
-
-## Estructura para CETUS
-
-```text
-.
-|-- .github/
-|   |-- workflows/
-|-- video/
-|   |-- demo.mp4
-|-- gallery/
-|   |-- cover.png
-|-- screenshots/
-|   |-- screenshot1.png
-|   |-- screenshot2.png
-|   |-- screenshot3.png
-|-- bin/
-|   |-- TowerDefenseMexicano.exe
-|-- assets/
-|-- include/
-|-- src/
-|-- README.md
-|-- makefile
-|-- .gitignore
-```
-
-## Notas de Entrega
-
-- El video de gameplay debe guardarse como `video/demo.mp4`.
-- La portada debe guardarse como `gallery/cover.png` con tamano 720x1080.
-- Las capturas deben guardarse en `screenshots/` como PNG, minimo 3 imagenes.
-- El ejecutable principal debe estar en `bin/`.

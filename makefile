@@ -1,4 +1,4 @@
-# Makefile para Tower Defense Mexicano
+# Makefile para Pinaton
 
 SRC_DIR := src
 BIN_DIR := bin
@@ -12,7 +12,7 @@ CXXFLAGS := -std=c++17 -I$(INCLUDE_DIR) -Wall -Wextra -MMD -MP
 SOURCES := $(SRC_DIR)/main.cpp $(SRC_DIR)/Entity.cpp $(SRC_DIR)/Game.cpp $(SRC_DIR)/TextureManager.cpp $(SRC_DIR)/Map.cpp $(SRC_DIR)/Enemies/Pinata.cpp $(SRC_DIR)/Towers/Tower.cpp
 OBJECTS := $(patsubst $(SRC_DIR)/%.cpp,obj/%.o,$(SOURCES))
 DEPENDS := $(OBJECTS:.o=.d)
-EXECUTABLE := $(BIN_DIR)/TowerDefenseMexicano.exe
+EXECUTABLE := $(BIN_DIR)/Pinaton.exe
 
 all: $(EXECUTABLE)
 

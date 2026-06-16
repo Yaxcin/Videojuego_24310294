@@ -3,7 +3,7 @@
 
 int main() {
     try {
-        std::cout << "=== Tower Defense Mexicano ===" << std::endl;
+        std::cout << "=== Pinaton ===" << std::endl;
         Game game(1280, 720);
         game.run();
         return 0;

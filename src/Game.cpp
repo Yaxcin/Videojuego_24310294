@@ -306,7 +306,7 @@ namespace {
 
 Game::Game(unsigned int w, unsigned int h) 
     : width(w), height(h), 
-      window(getFullscreenVideoMode(), "Tower Defense Mexicano", sf::Style::None, sf::State::Fullscreen),
+      window(getFullscreenVideoMode(), "Pinaton", sf::Style::None, sf::State::Fullscreen),
       fullscreenMode(true),
       currentState(GameState::MENU),
       deltaTime(0.0f),
@@ -319,7 +319,7 @@ Game::Game(unsigned int w, unsigned int h)
       victoryMusicLoaded(false),
       defeatMusicLoaded(false),
       playerMoney(150.0f),
-      playerLives(100),
+      playerLives(40),
       currentRound(1),
       enemiesLeftToSpawn(0),
       spawnTimer(0.f),
@@ -562,7 +562,7 @@ void Game::applyWindowMode() {
     const std::uint32_t style = fullscreenMode ? sf::Style::None : sf::Style::Default;
     const sf::State state = fullscreenMode ? sf::State::Fullscreen : sf::State::Windowed;
 
-    window.create(mode, "Tower Defense Mexicano", style, state);
+    window.create(mode, "Pinaton", style, state);
     window.setFramerateLimit(60);
     window.setView(sf::View(sf::FloatRect({0.f, 0.f}, {static_cast<float>(width), static_cast<float>(height)})));
 
@@ -1593,7 +1593,7 @@ bool Game::isTutorialTowerAllowed(TowerType type) const {
 
 void Game::resetPlaySession() {
     playerMoney = 150.f;
-    playerLives = 100;
+    playerLives = 40;
     currentRound = 1;
     enemiesLeftToSpawn = 0;
     spawnTimer = 0.f;
@@ -1660,7 +1660,7 @@ void Game::finishTutorial() {
     currentState = GameState::ROUND_PAUSE;
     roundPreviewVisible = true;
     playerMoney = 150.f;
-    playerLives = 100;
+    playerLives = 40;
     currentRound = 1;
     enemiesLeftToSpawn = 0;
     hypnotizerRangePenaltyTimer = 0.f;
@@ -1873,7 +1873,7 @@ void Game::renderTutorial() {
             body = tutorialWaveActive
                 ? "Arcilla resiste. Fruta ralentiza torres al romperse."
                 : "Ahora veremos una mini oleada con Arcilla y Fruta.";
-            body2 = tutorialWaveActive ? "En tutorial la fruta afectara torres para que se note." : "";
+            body2 = tutorialWaveActive ? "El efecto de la fruta es visible como un circulo amarillo." : "";
             hint = tutorialWaveActive ? "Observa los efectos especiales." : "SPACE: Iniciar mini oleada especial";
             break;
         case 6:
@@ -1887,7 +1887,7 @@ void Game::renderTutorial() {
             body = tutorialWaveActive
                 ? "La pinata de Revelacion se rompe en pinatas bebe."
                 : "Ahora prueba contra Arcilla y Revelacion.";
-            body2 = tutorialWaveActive ? "Observa si aparecen las pinatas bebe." : "";
+            body2 = tutorialWaveActive ? "Las pinatas bebe son como la de engrudo." : "";
             hint = tutorialWaveActive ? "Espera a que termine la mini oleada." : "SPACE: Iniciar mini oleada";
             break;
         case 8:
